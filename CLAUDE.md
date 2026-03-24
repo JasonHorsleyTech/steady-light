@@ -60,12 +60,14 @@ old-docs/            — Previous iteration documents (GPT sessions, earlier GDD
 
 | Term | Meaning |
 |------|---------|
-| **Ralph Loop** | A CLI utility Jason uses that breaks a chunk of work into tickets and hands each to a sequential Claude agent. Each agent finishes its ticket, updates a shared progress file, and the next agent picks up from there. You don't need to know how it works internally — just that it's the mechanism for overnight autonomous work sessions. |
+| **Ralph Loop** | A CLI utility Jason uses that breaks a chunk of work into tickets and hands each to a sequential Claude agent. Each agent finishes its ticket, updates a shared progress file, and the next agent picks up from there. You don't need to know how it works internally — just that it's the mechanism for overnight autonomous work sessions. "Ralph Loop" dos are in `/.chief` (the TUI that runs it) |
 | **Agents File** | Jason's shorthand for this file (CLAUDE.md). If he says "add it to the agents file," he means here. |
 | **Island** | The game as experienced by the human player. The actual product. |
 | **Bridge** | Infrastructure that lets a blind/deaf AI agent verify the island works correctly. Console logs, ASCII state renders, timing translations, debug overlays. Bridges are first-class citizens — as important to build well as the island itself. |
 | **Stepping Stone** | A self-contained, testable milestone that a Ralph loop can achieve in one overnight session. Each stone has clear acceptance criteria verifiable by an AI agent. |
 | **Dev Route** | An isolated URL path (e.g., `/dev/combat/stage-0`) that instantiates a single game component with test data, independent of the full game. Used for focused development and testing. |
+| **Workshop** | The `workshop/` directory. Tools agents use to build the game — audio generators, format converters, scaffolders. Not the game itself; the production line's toolbox. |
+| **Friction Log** | `FRICTION.md` at project root. Agents log unexpected problems here so the next agent doesn't waste focus re-solving them. Read it before starting work. |
 
 ## Development Philosophy: Islands & Bridges
 
@@ -120,6 +122,66 @@ docs/
       milestones/    — Low-level: individual stepping stones for overnight runs
 old-docs/            — Previous iteration documents (GPT sessions, earlier GDDs)
 ```
+
+## The Workshop
+
+The `workshop/` directory contains tools that agents use to build the game — not the game itself. Think of it as the production floor's toolbox.
+
+```
+workshop/
+  audio/
+    generate-sfx.sh    — Generate placeholder sound effects via ElevenLabs API
+    verify-audio.sh    — Verify audio files are valid, non-silent, and reasonable
+```
+
+**Workshop philosophy:** When an agent needs a capability that doesn't exist (generate audio, process images, convert formats, scaffold boilerplate), it should build or extend a workshop tool rather than doing the work ad-hoc. Workshop tools are reusable across agents and sessions.
+
+### Audio Tools
+
+Placeholder audio is generated via the ElevenLabs Sound Generation API. The API key lives in `.env` (gitignored). Generated assets go in `assets/audio/sfx/` organized by category (ui, combat, music, ambient, system).
+
+Audio verification uses `sox` and `ffmpeg` (install via `brew install sox ffmpeg`). The verify script checks file validity, silence detection (RMS amplitude), duration, and waveform shape — all as structured text an AI agent can parse.
+
+**Generation method:**
+`/generate-sfx-browser` — drives the ElevenLabs web UI via Chrome DevTools MCP. **Delegate to a background sub-agent** — it takes 1-2 minutes and you don't want to burn main context on browser automation. The skill contains a complete sub-agent prompt template. Saves all 4 variants, picks the best as default (highest RMS for impact SFX). The API script (`workshop/audio/generate-sfx.sh`) still exists as a fallback but produces lower quality.
+
+## Friction Log
+
+`FRICTION.md` at project root is a running log of friction points that agents encounter during development. **Every agent should read it before starting work and update it when they hit friction.**
+
+### When to log friction
+- You tried something and it failed, and you had to experiment or read docs to find the fix
+- An API behaved differently than documented
+- A tool needed a non-obvious flag or configuration
+- You wasted context on something a comment or script fix could have prevented
+
+### When to just fix it
+- If the fix takes under 2 minutes (add a comment, update a default, fix a flag), do it inline
+- Still note what you did in FRICTION.md so the trail is visible
+
+### The principle
+Every minute an agent spends re-solving a known problem is wasted focus. Friction logging is how agents build institutional memory across sessions. **If you hit it, log it. If you can fix it, fix it.**
+
+## Agent Skills & Commands
+
+Claude Code commands live in `.claude/commands/` as markdown files. These become `/command-name` slash commands that agents (or Jason) can invoke.
+
+**Current commands:**
+- `/generate-sfx-browser` — Generate sound effects via ElevenLabs web UI + Chrome DevTools MCP. Delegate to a background sub-agent.
+
+**Creating new commands:** When you build a new workshop tool or establish a repeatable workflow, create a matching command in `.claude/commands/`. The command file should document what tools are involved, how to use them, and common pitfalls.
+
+## Continuous Improvement
+
+Agents should always be making the path smoother for the next agent. This means:
+
+1. **Log friction** — Update `FRICTION.md` when you hit unexpected problems
+2. **Fix small things** — If a script has a confusing default or missing comment, fix it as you go
+3. **Build tools** — If you're doing something manually that could be scripted, add it to `workshop/`
+4. **Create commands** — If a workflow is repeatable, make it a `/command`
+5. **Update this file** — If you learn something that every future agent should know, add it here
+
+The goal: each agent session should leave the project slightly more efficient than it found it. Not through heroic refactors, but through small, compounding improvements to the tooling and documentation.
 
 ## Current Status
 
