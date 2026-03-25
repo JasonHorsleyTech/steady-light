@@ -16,6 +16,7 @@
 import fs from "fs";
 import path from "path";
 import { Compiler } from "inkjs/compiler/Compiler";
+import { ErrorType } from "inkjs/engine/Error";
 
 const inputPath = process.argv[2];
 if (!inputPath) {
@@ -44,6 +45,13 @@ const warnings: string[] = [];
 // --- 1. Compiler check ---
 try {
   const compiler = new Compiler(source, {
+    errorHandler: (message: string, errorType: ErrorType) => {
+      if (errorType === ErrorType.Error) {
+        errors.push(`Compiler: ${message}`);
+      } else if (errorType === ErrorType.Warning) {
+        warnings.push(`Compiler: ${message}`);
+      }
+    },
     fileHandler: {
       ResolveInkFilename(filename: string): string {
         return filename;
@@ -56,14 +64,8 @@ try {
     },
   } as any);
   compiler.Compile();
-  if ((compiler as any).errors && (compiler as any).errors.length > 0) {
-    (compiler as any).errors.forEach((e: string) => errors.push(`Compiler: ${e}`));
-  }
-  if ((compiler as any).warnings && (compiler as any).warnings.length > 0) {
-    (compiler as any).warnings.forEach((w: string) => warnings.push(`Compiler: ${w}`));
-  }
-} catch (err) {
-  errors.push(`Compiler crash: ${(err as Error).message}`);
+} catch {
+  // Compile() throws on errors — errors already collected via errorHandler
 }
 
 // --- 2. Structural analysis ---

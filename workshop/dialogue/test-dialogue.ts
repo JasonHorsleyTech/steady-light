@@ -18,6 +18,7 @@ import path from "path";
 // @ts-expect-error — inkjs is ESM but tsx handles the interop at runtime
 import { Story } from "inkjs";
 import { Compiler } from "inkjs/compiler/Compiler";
+import { ErrorType } from "inkjs/engine/Error";
 
 // Parse args
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
@@ -68,7 +69,13 @@ if (absInput.endsWith(".ink.json")) {
   story = new Story(json);
 } else if (absInput.endsWith(".ink")) {
   const source = fs.readFileSync(absInput, "utf-8");
+  const compileErrors: string[] = [];
   const compiler = new Compiler(source, {
+    errorHandler: (message: string, errorType: ErrorType) => {
+      if (errorType === ErrorType.Error) {
+        compileErrors.push(message);
+      }
+    },
     fileHandler: {
       ResolveInkFilename(filename: string): string {
         return filename;
@@ -80,10 +87,15 @@ if (absInput.endsWith(".ink.json")) {
       },
     },
   } as any);
-  const compiled = compiler.Compile();
-  if (!compiled || ((compiler as any).errors && (compiler as any).errors.length > 0)) {
+  let compiled: ReturnType<typeof compiler.Compile>;
+  try {
+    compiled = compiler.Compile();
+  } catch {
+    compiled = null as any;
+  }
+  if (!compiled || compileErrors.length > 0) {
     console.error("COMPILE ERRORS:");
-    ((compiler as any).errors || []).forEach((e: string) => console.error(`  ${e}`));
+    compileErrors.forEach((e: string) => console.error(`  ${e}`));
     process.exit(1);
   }
   story = new Story(compiled.ToJson());

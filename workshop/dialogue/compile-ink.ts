@@ -11,6 +11,7 @@
 import fs from "fs";
 import path from "path";
 import { Compiler } from "inkjs/compiler/Compiler";
+import { ErrorType } from "inkjs/engine/Error";
 
 const inputPath = process.argv[2];
 if (!inputPath) {
@@ -37,9 +38,19 @@ console.log();
 const inkSource = fs.readFileSync(absInput, "utf-8");
 
 // Compile with error collection
+const errors: string[] = [];
+const warnings: string[] = [];
+
 let compiler: InstanceType<typeof Compiler>;
 try {
   compiler = new Compiler(inkSource, {
+    errorHandler: (message: string, errorType: ErrorType) => {
+      if (errorType === ErrorType.Error) {
+        errors.push(message);
+      } else if (errorType === ErrorType.Warning) {
+        warnings.push(message);
+      }
+    },
     fileHandler: {
       ResolveInkFilename(filename: string): string {
         return filename;
@@ -61,14 +72,10 @@ try {
 let story: ReturnType<typeof compiler.Compile>;
 try {
   story = compiler.Compile();
-} catch (err) {
-  console.error(`COMPILE ERROR: ${(err as Error).message}`);
-  process.exit(1);
+} catch {
+  // Compile() throws on errors — fall through to report collected errors below
+  story = null as any;
 }
-
-// Report errors and warnings
-const errors: string[] = (compiler as any).errors || [];
-const warnings: string[] = (compiler as any).warnings || [];
 
 if (warnings.length > 0) {
   console.log(`Warnings (${warnings.length}):`);
