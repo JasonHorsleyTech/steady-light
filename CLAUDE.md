@@ -22,6 +22,8 @@ The game uses the Spec Ops: The Line approach: lean into boring, comfortable RPG
 
 ## Technical Approach
 
+**Always TypeScript. No exceptions.** Every file — game code, workshop scripts, one-off utilities, config generators — must be TypeScript. Not JavaScript, even for a "quick script." TypeScript keeps agents' heads straight and they write it just as fast. Use `tsx` to run TypeScript files directly (no separate compile step for workshop scripts).
+
 **Browser-based game** built with web technologies. The reason: Claude can interact with browsers via Chrome DevTools MCP server — read console logs, take screenshots, click elements, evaluate JS. This creates a closed loop where Claude can write code, test it, see errors, and fix them without human involvement.
 
 **Debug logging is a first-class requirement.** Structured console logs for every state change, event, NPC interaction, and combat action. Format:

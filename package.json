@@ -1,0 +1,14 @@
+{
+  "name": "steady-light",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Philosophical RPG disguised as a generic RPG",
+  "scripts": {},
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "free-tex-packer-core": "^0.3.4",
+    "inkjs": "^2.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}

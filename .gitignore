@@ -1,3 +1,7 @@
 .chief/
 .env
 node_modules
+dist/
+
+# Compiled ink output (regenerated from .ink sources)
+*.ink.json
