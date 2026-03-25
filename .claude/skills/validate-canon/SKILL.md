@@ -9,7 +9,7 @@ Ensure all game content is consistent with the single source of truth: `docs/can
 ## Quick Start
 
 ```bash
-bash workshop/canon/validate-canon.sh
+npm run validate-canon
 ```
 
 ## When to Run

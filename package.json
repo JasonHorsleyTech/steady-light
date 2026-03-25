@@ -11,7 +11,7 @@
     "pack-sprites": "tsx workshop/sprites/pack-sprites.ts",
     "split-loop": "tsx workshop/audio/split-loop.ts",
     "build-sprite": "tsx workshop/audio/build-sprite.ts",
-    "validate-canon": "bash workshop/canon/validate-canon.sh"
+    "validate-canon": "tsx workshop/canon/validate-canon.ts"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
