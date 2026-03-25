@@ -78,7 +78,7 @@ const options = {
   allowRotation: false,
   detectIdentical: true,
   allowTrim: true,
-  exporter: "JsonHash" as any,
+  exporter: "JsonHash" as any, // packAsync types don't accept string literals, but this is the correct runtime value
   removeFileExtension: false,
   prependFolderName: false,
 };

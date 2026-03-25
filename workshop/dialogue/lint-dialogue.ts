@@ -62,7 +62,7 @@ try {
         return fs.readFileSync(includePath, "utf-8");
       },
     },
-  } as any);
+  } as any); // inkjs Compiler types don't include errorHandler/fileHandler, but they're required at runtime
   compiler.Compile();
 } catch {
   // Compile() throws on errors — errors already collected via errorHandler

@@ -3,5 +3,12 @@
 node_modules
 dist/
 
+# macOS metadata
+.DS_Store
+
 # Compiled ink output (regenerated from .ink sources)
 *.ink.json
+
+# Intermediate audio files (workshop tools use OS tmpdir, but safety net)
+*.wav
+*.opus

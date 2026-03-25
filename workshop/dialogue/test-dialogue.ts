@@ -86,12 +86,12 @@ if (absInput.endsWith(".ink.json")) {
         return fs.readFileSync(includePath, "utf-8");
       },
     },
-  } as any);
+  } as any); // inkjs Compiler types don't include errorHandler/fileHandler, but they're required at runtime
   let compiled: ReturnType<typeof compiler.Compile>;
   try {
     compiled = compiler.Compile();
   } catch {
-    compiled = null as any;
+    compiled = null as any; // checked for null after error reporting
   }
   if (!compiled || compileErrors.length > 0) {
     console.error("COMPILE ERRORS:");
