@@ -9,6 +9,8 @@
     "lint-dialogue": "tsx workshop/dialogue/lint-dialogue.ts",
     "tiled-to-ascii": "tsx workshop/maps/tiled-to-ascii.ts",
     "pack-sprites": "tsx workshop/sprites/pack-sprites.ts",
+    "split-loop": "tsx workshop/audio/split-loop.ts",
+    "build-sprite": "tsx workshop/audio/build-sprite.ts",
     "validate-canon": "bash workshop/canon/validate-canon.sh"
   },
   "devDependencies": {

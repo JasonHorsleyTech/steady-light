@@ -16,10 +16,10 @@ Generate, process, and package audio for Steady Light. Covers the full pipeline 
 # Use the /generate-sfx-browser skill for browser-based generation
 
 # Split a long loop into individual variants
-./workshop/audio/split-loop.sh footsteps-wet-stone.mp3 assets/audio/sfx/footsteps --prefix foot-wet-stone
+npx tsx workshop/audio/split-loop.ts footsteps-wet-stone.mp3 assets/audio/sfx/footsteps --prefix foot-wet-stone
 
 # Combine variants into a Howler.js audio sprite
-./workshop/audio/build-sprite.sh assets/audio/sfx/footsteps/ --output footstep-wet-stone-sprites
+npx tsx workshop/audio/build-sprite.ts assets/audio/sfx/footsteps/ --output footstep-wet-stone-sprites
 
 # Verify any audio file
 ./workshop/audio/verify-audio.sh hit-slime.mp3
@@ -46,11 +46,11 @@ Generates sound effects via the ElevenLabs API. Fast but lower quality than brow
 Higher quality generation via the ElevenLabs web UI. Use the `/generate-sfx-browser` skill.
 Always generates 4 variants. Requires Chrome DevTools MCP.
 
-### split-loop.sh — Loop Splitting
+### split-loop.ts — Loop Splitting
 Splits a long audio file into individual sound variants by detecting silence gaps.
 
 ```bash
-./workshop/audio/split-loop.sh <input> [output-dir] [--prefix name] [--threshold dB] [--min-silence sec]
+npx tsx workshop/audio/split-loop.ts <input> [output-dir] [--prefix name] [--threshold dB] [--min-silence sec]
 ```
 
 **The key workflow:** Generate one long loop (e.g., 10s of "footsteps on wet stone"), split it into 10-15 individual footstep sounds. One API call, many usable variants.
@@ -60,11 +60,11 @@ Options:
 - `--threshold`: silence detection in dB (default: -35, higher = more sensitive)
 - `--min-silence`: minimum gap to count as silence in seconds (default: 0.05)
 
-### build-sprite.sh — Audio Sprite Builder
+### build-sprite.ts — Audio Sprite Builder
 Combines multiple MP3 files into a single audio sprite + Howler.js JSON manifest.
 
 ```bash
-./workshop/audio/build-sprite.sh <dir-or-files> [--output name] [--gap ms] [--outdir dir]
+npx tsx workshop/audio/build-sprite.ts <dir-or-files> [--output name] [--gap ms] [--outdir dir]
 ```
 
 Output is two files:
@@ -106,10 +106,10 @@ Verifies an audio file is valid, non-silent, and has reasonable properties. Outp
 ./workshop/audio/generate-sfx.sh "footsteps on wet stone floor in a dungeon, continuous walking" /tmp/foot-wet-stone-loop.mp3 10.0
 
 # 2. Split into individual steps
-./workshop/audio/split-loop.sh /tmp/foot-wet-stone-loop.mp3 assets/audio/sfx/footsteps --prefix foot-wet-stone
+npx tsx workshop/audio/split-loop.ts /tmp/foot-wet-stone-loop.mp3 assets/audio/sfx/footsteps --prefix foot-wet-stone
 
 # 3. Pack into audio sprite
-./workshop/audio/build-sprite.sh assets/audio/sfx/footsteps/ --output footstep-wet-stone-sprites --outdir assets/audio/sfx/footsteps
+npx tsx workshop/audio/build-sprite.ts assets/audio/sfx/footsteps/ --output footstep-wet-stone-sprites --outdir assets/audio/sfx/footsteps
 ```
 
 ### Combat SFX pack
@@ -120,7 +120,7 @@ Verifies an audio file is valid, non-silent, and has reasonable properties. Outp
 ./workshop/audio/generate-sfx.sh "quick dodge whoosh" assets/audio/sfx/combat/dodge.mp3 0.5 4
 
 # Pack into combat sprite
-./workshop/audio/build-sprite.sh assets/audio/sfx/combat/ --output combat-sprites --outdir assets/audio/sfx/combat
+npx tsx workshop/audio/build-sprite.ts assets/audio/sfx/combat/ --output combat-sprites --outdir assets/audio/sfx/combat
 ```
 
 ## File Organization
