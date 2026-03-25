@@ -56,7 +56,7 @@ Rent's 3 silver a day. No exceptions.
 ### Price References
 Always reference `docs/canon/state-manifest.json` for prices. Never hardcode a number — if the manifest says a sword costs 8 silver, the dialogue says "8 silver."
 
-After writing dialogue that mentions prices, run `workshop/canon/validate-canon.sh` to verify consistency.
+After writing dialogue that mentions prices, run `npm run validate-canon` to verify consistency.
 
 ## Workflow
 
@@ -66,7 +66,7 @@ After writing dialogue that mentions prices, run `workshop/canon/validate-canon.
 3. Compile: `npx tsx workshop/dialogue/compile-ink.ts assets/dialogue/<npc>.ink`
 4. Playtest all choice paths: `npx tsx workshop/dialogue/test-dialogue.ts assets/dialogue/<npc>.ink "0,0,0"`
 5. Lint: `npx tsx workshop/dialogue/lint-dialogue.ts assets/dialogue/<npc>.ink`
-6. Validate canon: `bash workshop/canon/validate-canon.sh`
+6. Validate canon: `npm run validate-canon`
 
 ### Editing existing dialogue
 1. Read the `.ink` file (it reads like a screenplay)

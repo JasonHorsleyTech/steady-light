@@ -10,13 +10,13 @@ Create and verify tile maps for Steady Light using the Tiled JSON format. Agents
 
 ```bash
 # View a map as ASCII
-npx tsx workshop/maps/tiled-to-ascii.ts assets/maps/town.json
+npx tsx workshop/maps/tiled-to-ascii.ts assets/maps/test-town.json
 
 # View a specific layer
-npx tsx workshop/maps/tiled-to-ascii.ts assets/maps/town.json --layer collision
+npx tsx workshop/maps/tiled-to-ascii.ts assets/maps/test-town.json --layer collision
 
 # View with tile legend
-npx tsx workshop/maps/tiled-to-ascii.ts assets/maps/town.json --legend
+npx tsx workshop/maps/tiled-to-ascii.ts assets/maps/test-town.json --legend
 ```
 
 ## Tiled JSON Format
