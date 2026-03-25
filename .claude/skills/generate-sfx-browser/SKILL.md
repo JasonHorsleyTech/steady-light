@@ -1,6 +1,10 @@
+---
+description: "Generate high-quality sound effects using the ElevenLabs web UI via Chrome DevTools MCP. Delegate to a background sub-agent — browser automation takes 1-2 minutes."
+---
+
 Generate high-quality sound effects using the ElevenLabs web UI via Chrome DevTools MCP.
 
-**This command should be delegated to a background sub-agent.** The browser automation takes 1-2 minutes and involves waiting. Don't burn your main context on it.
+**This skill should be delegated to a background sub-agent.** The browser automation takes 1-2 minutes and involves waiting. Don't burn your main context on it.
 
 ## How to Use
 
@@ -130,10 +134,6 @@ Agent tool:
 ```
 
 The sub-agent runs in the background. You get notified when it's done. Your main conversation stays focused.
-
-## When to Use This vs the API Script
-- **Use this (browser via sub-agent)**: Primary method. Best quality. Runs in background.
-- **Use the API script** (`workshop/audio/generate-sfx.sh`): Fallback when browser isn't available or login expired.
 
 ## File Organization
 ```

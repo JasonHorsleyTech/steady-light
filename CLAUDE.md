@@ -67,7 +67,7 @@ old-docs/            — Previous iteration documents (GPT sessions, earlier GDD
 | **Stepping Stone** | A self-contained, testable milestone that a Ralph loop can achieve in one overnight session. Each stone has clear acceptance criteria verifiable by an AI agent. |
 | **Dev Route** | An isolated URL path (e.g., `/dev/combat/stage-0`) that instantiates a single game component with test data, independent of the full game. Used for focused development and testing. |
 | **Workshop** | The `workshop/` directory. Tools agents use to build the game — audio generators, format converters, scaffolders. Not the game itself; the production line's toolbox. |
-| **Friction Log** | `FRICTION.md` at project root. Agents log unexpected problems here so the next agent doesn't waste focus re-solving them. Read it before starting work. |
+| **Friction Log** | `FRICTION.md` at project root. Agents log unexpected problems here so the next agent doesn't waste focus re-solving them. |
 
 ## Development Philosophy: Islands & Bridges
 
@@ -127,64 +127,25 @@ old-docs/            — Previous iteration documents (GPT sessions, earlier GDD
 
 The `workshop/` directory contains tools that agents use to build the game — not the game itself. Think of it as the production floor's toolbox.
 
-```
-workshop/
-  audio/
-    generate-sfx.sh    — Generate placeholder sound effects via ElevenLabs API
-    verify-audio.sh    — Verify audio files are valid, non-silent, and reasonable
-```
+When an agent needs a capability that doesn't exist (generate audio, process images, convert formats, scaffold boilerplate), it should build or extend a workshop tool rather than doing the work ad-hoc. Workshop tools are reusable across agents and sessions.
 
-**Workshop philosophy:** When an agent needs a capability that doesn't exist (generate audio, process images, convert formats, scaffold boilerplate), it should build or extend a workshop tool rather than doing the work ad-hoc. Workshop tools are reusable across agents and sessions.
+When you build or extend a workshop tool, **create a skill for it** in `.claude/skills/<tool-name>/SKILL.md`. The skill is the instruction manual — it contains all the specifics of how to use the tool. Skill descriptions auto-load every session so agents know the capability exists without reading the full instructions. Don't document tool specifics in this file — that creates drift between two sources of truth.
 
-### Audio Tools
+## Master Plan
 
-Placeholder audio is generated via the ElevenLabs Sound Generation API. The API key lives in `.env` (gitignored). Generated assets go in `assets/audio/sfx/` organized by category (ui, combat, music, ambient, system).
-
-Audio verification uses `sox` and `ffmpeg` (install via `brew install sox ffmpeg`). The verify script checks file validity, silence detection (RMS amplitude), duration, and waveform shape — all as structured text an AI agent can parse.
-
-**Generation method:**
-`/generate-sfx-browser` — drives the ElevenLabs web UI via Chrome DevTools MCP. **Delegate to a background sub-agent** — it takes 1-2 minutes and you don't want to burn main context on browser automation. The skill contains a complete sub-agent prompt template. Saves all 4 variants, picks the best as default (highest RMS for impact SFX). The API script (`workshop/audio/generate-sfx.sh`) still exists as a fallback but produces lower quality.
+`PLAN.md` at project root is the high-level plan to take the entire project from start to finish. Read it when you need to understand where the current work fits in the big picture.
 
 ## Friction Log
 
-`FRICTION.md` at project root is a running log of friction points that agents encounter during development. **Every agent should read it before starting work and update it when they hit friction.**
-
-### When to log friction
-- You tried something and it failed, and you had to experiment or read docs to find the fix
-- An API behaved differently than documented
-- A tool needed a non-obvious flag or configuration
-- You wasted context on something a comment or script fix could have prevented
-
-### When to just fix it
-- If the fix takes under 2 minutes (add a comment, update a default, fix a flag), do it inline
-- Still note what you did in FRICTION.md so the trail is visible
-
-### The principle
-Every minute an agent spends re-solving a known problem is wasted focus. Friction logging is how agents build institutional memory across sessions. **If you hit it, log it. If you can fix it, fix it.**
-
-## Agent Skills & Commands
-
-Claude Code commands live in `.claude/commands/` as markdown files. These become `/command-name` slash commands that agents (or Jason) can invoke.
-
-**Current commands:**
-- `/generate-sfx-browser` — Generate sound effects via ElevenLabs web UI + Chrome DevTools MCP. Delegate to a background sub-agent.
-
-**Creating new commands:** When you build a new workshop tool or establish a repeatable workflow, create a matching command in `.claude/commands/`. The command file should document what tools are involved, how to use them, and common pitfalls.
+`FRICTION.md` at project root tracks recurring pain points. **Don't read it proactively** — stay focused on your task. But if you hit unexpected friction (something failed, an API surprised you, a tool needed a non-obvious workaround), open `FRICTION.md` and either add a new entry or increment the hit count on an existing one.
 
 ## Continuous Improvement
 
 Agents should always be making the path smoother for the next agent. This means:
 
-1. **Log friction** — Update `FRICTION.md` when you hit unexpected problems
-2. **Fix small things** — If a script has a confusing default or missing comment, fix it as you go
-3. **Build tools** — If you're doing something manually that could be scripted, add it to `workshop/`
-4. **Create commands** — If a workflow is repeatable, make it a `/command`
-5. **Update this file** — If you learn something that every future agent should know, add it here
+1. **Fix small things** — If a script has a confusing default or missing comment, fix it as you go
+2. **Build tools** — If you're doing something manually that could be scripted, add it to `workshop/`
+3. **Create skills** — If a workflow is repeatable, create a skill in `.claude/skills/`. The skill description auto-loads every session; the full instructions load only when invoked.
+4. **Update this file** — If you learn something that every future agent should know, add it here. But don't put tool-specific instructions here — those belong in skills.
 
 The goal: each agent session should leave the project slightly more efficient than it found it. Not through heroic refactors, but through small, compounding improvements to the tooling and documentation.
-
-## Current Status
-
-**Phase: Documentation & Design → Implementation Planning**
-
-Design docs are consolidated. Roadmap and milestone structure are in place for Chapter 1. Next step: finalize tech stack decision, then begin Milestone 00 (project scaffolding).
