@@ -1,12 +1,32 @@
 import { gameStore } from '../core/store';
 import type { GameState } from '../core/store';
 import { eventBus } from '../core/event-bus';
+import { logger } from '../core/logger';
+import type { LogCategory } from '../core/logger';
+import { bridgeManager } from '../bridges/bridge-manager';
+import type { BridgeName } from '../bridges/bridge-manager';
+
+export interface BridgeControls {
+  enable: (name: BridgeName | 'all') => void;
+  disable: (name: BridgeName | 'all') => void;
+  toggle: (name: BridgeName | 'all') => void;
+  status: () => Record<BridgeName, boolean>;
+}
+
+export interface LoggerControls {
+  enable: (category: LogCategory) => void;
+  disable: (category: LogCategory) => void;
+  setAll: (enabled: boolean) => void;
+  status: () => Record<LogCategory, boolean>;
+}
 
 export interface SteadyLightDebug {
   getState: () => GameState;
   setState: (partial: Partial<GameState>) => void;
   toggleDebug: () => void;
   eventBus: typeof eventBus;
+  logger: LoggerControls;
+  bridges: BridgeControls;
 }
 
 declare global {
@@ -29,14 +49,38 @@ export function initStateInspector(): void {
     setState: (partial) => gameStore.setState(partial),
     toggleDebug: () => {
       debugEnabled = !debugEnabled;
-      console.log(
-        `[STEADY-LIGHT:DEBUG] Debug mode ${debugEnabled ? 'ON' : 'OFF'}`,
-      );
+      logger.log('DEBUG', { debugMode: debugEnabled ? 'ON' : 'OFF' });
     },
     eventBus,
+    logger: {
+      enable: (cat) => logger.enable(cat),
+      disable: (cat) => logger.disable(cat),
+      setAll: (enabled) => logger.setAll(enabled),
+      status: () => logger.status(),
+    },
+    bridges: {
+      enable: (name) => {
+        if (name === 'all') bridgeManager.enableAll();
+        else bridgeManager.enable(name);
+      },
+      disable: (name) => {
+        if (name === 'all') bridgeManager.disableAll();
+        else bridgeManager.disable(name);
+      },
+      toggle: (name) => {
+        if (name === 'all') {
+          // Toggle all: if any are on, disable all; otherwise enable all
+          const s = bridgeManager.status();
+          const anyOn = Object.values(s).some(Boolean);
+          if (anyOn) bridgeManager.disableAll();
+          else bridgeManager.enableAll();
+        } else {
+          bridgeManager.toggle(name);
+        }
+      },
+      status: () => bridgeManager.status(),
+    },
   };
 
-  console.log(
-    '[STEADY-LIGHT:DEBUG] State inspector ready — use window.STEADY_LIGHT.getState()',
-  );
+  logger.log('DEBUG', { message: 'State inspector ready — use window.STEADY_LIGHT.getState()' });
 }
