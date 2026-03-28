@@ -1,4 +1,22 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+
+/**
+ * Lazy-load dev routes behind import.meta.env.DEV.
+ * Vite replaces DEV with `false` in production, making the dynamic import
+ * dead code — Rollup tree-shakes it out of the bundle entirely.
+ */
+const DevLayout = import.meta.env.DEV
+  ? lazy(() => import('./dev/DevLayout'))
+  : null;
+
+const DevIndex = import.meta.env.DEV
+  ? lazy(() => import('./dev/DevIndex').then((m) => ({ default: m.DevIndex })))
+  : null;
+
+const DevTest = import.meta.env.DEV
+  ? lazy(() => import('./dev/DevTest').then((m) => ({ default: m.DevTest })))
+  : null;
 
 function Home() {
   return (
@@ -13,9 +31,17 @@ function Home() {
 export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-      </Routes>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          {DevLayout && DevIndex && DevTest && (
+            <Route path="/dev" element={<DevLayout />}>
+              <Route index element={<DevIndex />} />
+              <Route path="test" element={<DevTest />} />
+            </Route>
+          )}
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
