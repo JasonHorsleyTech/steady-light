@@ -1,7 +1,7 @@
 ---
-last_reviewed: 2026-03-24
-design_confidence: medium
-implementation_confidence: medium
+last_reviewed: 2026-03-28
+design_confidence: high
+implementation_confidence: high
 ---
 
 # Technical Architecture
@@ -14,16 +14,21 @@ Previous attempts used Godot — failed due to learning curve and no Claude inte
 2. **Closed loop development.** Claude writes code → tests it → sees errors → fixes them. No human needed for basic iteration.
 3. **Home turf.** Jason is a web developer. No engine learning curve.
 
-## Tech Stack (TBD)
+## Tech Stack (Locked)
 
-Candidates:
-- **Vanilla JS + Canvas** — Simplest, most controllable, Claude can understand every line
-- **Phaser.js** — Established 2D game framework, good RPG support, handles sprites/tilemaps/audio
-- **PixiJS** — Fast 2D rendering, good middle ground between vanilla and full framework
-
-Decision criteria: whatever gives Claude the most visibility into game state via console logs and the simplest path to getting the combat loop running.
-
-Previous iteration mentioned Vue.js + TypeScript. Still viable if we want component-based UI for menus/dialogue/inventory layered over a canvas game view.
+| System | Choice | Why |
+|--------|--------|-----|
+| **Language** | TypeScript (strict, everywhere) | Type safety helps AI agents understand and modify code correctly. No JavaScript, ever. |
+| **UI Framework** | React 19 | Component model maps to dev routes. React handles UI layers (menus, dialogue, debug) over PixiJS canvas. |
+| **Build** | Vite 8 | Fast dev server, HMR, simple config. `import.meta.env.DEV` for dev-only code stripping. |
+| **Rendering** | PixiJS v8 (pinned ~8.17.1) | Sprite sheets, animation, texture atlas support out of the box. Pin version for stability — v8 API docs may have gaps. If FRICTION.md hits pile up, fall back to Canvas 2D. |
+| **State Management** | Zustand (vanilla) | Plain object stores accessible outside React — from game loop, PixiJS callbacks, bridges, `window.STEADY_LIGHT`. React Context requires being inside the component tree; game engine code runs outside React. |
+| **Dialogue** | ink (via inkjs) | Reads like a screenplay — agents author/edit naturally. Has CLI compiler (inklecate) for agent playtesting. Has browser runtime (inkjs, 40KB). Supports variables, conditions, tunnels. |
+| **SFX Playback** | Howler.js | Audio sprites, codec fallback, volume/fade, mobile unlock. 10KB gzipped. |
+| **Music Playback** | Raw Web Audio API | Howler abstracts away `AudioContext.currentTime`, which is the ONLY mechanism for sub-ms beat scheduling. Music system needs raw API. SFX system uses Howler. They share an `AudioContext` but never cross-import. |
+| **Tilemap Format** | Tiled JSON export | Industry standard. PixiJS can render it. Agents can generate/modify it programmatically (it's just arrays of tile indices). |
+| **Sprite Sheets** | TexturePacker JSON Hash (via free-tex-packer-core) | PixiJS loads this natively. free-tex-packer-core is an npm package — no GUI needed. |
+| **Routing** | React Router | Dev routes at `/dev/*`, game at `/`. Dev routes lazy-loaded and tree-shaken from production. |
 
 ## Debug & Breadcrumb System (Critical)
 
@@ -71,15 +76,20 @@ Generic RPG pixel art, 32-64 px tile scale. Sources:
 - UI elements (stat bars, menus, dialogue boxes, queue indicators)
 - NPC portraits (optional — may use dialogue-only)
 
-## Audio Pipeline
+## Audio Architecture
 
-Music is mechanically critical — it's the combat clock.
+Music is mechanically critical — it's the combat clock. Two separate audio systems share one `AudioContext`:
 
-- Need loopable tracks at specific BPMs (84-96 early)
-- Need to programmatically sync game events to beat positions
-- Web Audio API for precise timing
-- AI music generation tools may be viable now (evaluate Suno, Udio, etc.)
-- SFX: minimal, functional (hit, block, dodge, menu confirm/cancel, flip bell)
+### Music (Raw Web Audio API)
+- `MusicPlayer.ts` — loads/plays/loops tracks via `AudioBufferSourceNode`
+- `BPMTracker.ts` — fires beat/measure events using `AudioContext.currentTime` (NOT `setInterval` or `requestAnimationFrame`)
+- `BeatScheduler.ts` — pre-schedules events N beats ahead on the audio clock for sub-ms accuracy
+- Beat maps: JSON alongside each track with exact beat timestamps, BPM, time signature
+
+### SFX (Howler.js)
+- Audio sprites (combined MP3 + JSON seek manifest) for grouped SFX
+- Individual MP3s for one-offs (flip bell, menu confirm)
+- Lazy-loaded by scene
 
 ## Save System
 
@@ -98,9 +108,5 @@ TBD. Likely localStorage for browser. Need to serialize:
 - No backend needed (unless we add the AI dialogue system in Act 3)
 
 ## Open Questions
-- Framework decision needed before implementation starts
-- How to handle sprite sheet loading and animation
-- Web Audio API vs. Howler.js for audio with beat sync
-- How to represent the 8x8 grid + movement system
 - Input handling: keyboard primary? Mouse? Both?
 - Mobile support? (Probably not for v1)

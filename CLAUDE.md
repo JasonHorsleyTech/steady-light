@@ -20,6 +20,41 @@ The game uses the Spec Ops: The Line approach: lean into boring, comfortable RPG
 2. **Combat:** Looks turn-based → actually simultaneous rhythm-based (both sides queue on the same beats, execute at the same time)
 3. **Progression:** Gear/guild/economy looks like progress → actually a treadmill. Real growth is combat mastery and self-study.
 
+## Quick Start
+
+```bash
+npm run dev          # Start Vite dev server (http://localhost:5173)
+npm run build        # Production build
+npm run typecheck    # Run both tsconfigs (app + workshop)
+```
+
+**Dev routes:** Navigate to `/dev` for the index of all dev route harnesses. Dev routes are stripped from production builds.
+
+**State inspector:** Open browser console and use:
+```js
+window.STEADY_LIGHT.getState()       // Full game state snapshot
+window.STEADY_LIGHT.setState({...})  // Merge partial state
+window.STEADY_LIGHT.toggleDebug()    // Toggle debug mode
+window.STEADY_LIGHT.eventBus         // Access EventBus (on/off/emit)
+```
+
+**Bridge controls:**
+```js
+window.STEADY_LIGHT.bridges.enable('all')    // Enable all bridges
+window.STEADY_LIGHT.bridges.disable('all')   // Disable all bridges
+window.STEADY_LIGHT.bridges.toggle('grid')   // Toggle a specific bridge
+window.STEADY_LIGHT.bridges.status()         // Show bridge states
+```
+Note: `DevLayout` auto-enables all bridges when entering any `/dev/*` route.
+
+**Logger controls:**
+```js
+window.STEADY_LIGHT.logger.enable('STATE')   // Enable a log category
+window.STEADY_LIGHT.logger.disable('COMBAT') // Disable a log category
+window.STEADY_LIGHT.logger.status()          // Show category states
+```
+Categories: STATE, EVENT, COMBAT, NPC, ECON, DEBUG.
+
 ## Technical Approach
 
 **Always TypeScript. No exceptions.** Every file — game code, workshop scripts, one-off utilities, config generators — must be TypeScript. Not JavaScript, even for a "quick script." TypeScript keeps agents' heads straight and they write it just as fast. Use `tsx` to run TypeScript files directly (no separate compile step for workshop scripts).
