@@ -1,0 +1,200 @@
+{
+  "_meta": {
+    "description": "Canonical state manifest — single source of truth for all game values that must stay consistent across dialogue, economy, combat, and progression systems.",
+    "last_updated": "2026-03-25",
+    "version": 1
+  },
+
+  "stats": {
+    "names": {
+      "real": ["drive", "insight", "stability"],
+      "false": ["calm", "confidence", "passion"]
+    },
+    "base_value": 5,
+    "max_value": 20,
+    "zero_means": {
+      "drive": "give_up",
+      "insight": "confusion",
+      "stability": "daze_and_flee"
+    },
+    "combat_gains": {
+      "attack_landed": { "attacker": { "drive": 1 }, "target": { "drive": -1 } },
+      "attack_blocked": { "attacker": { "insight": -1 }, "target": { "insight": 1 } },
+      "attack_dodged": { "attacker": { "stability": -1 }, "target": { "stability": 1 } }
+    },
+    "stage_unlocks": {
+      "stage_1": { "condition": "any_stat_flipped", "description": "Energy bar splits into 3 bars" },
+      "stage_2": { "condition": "insight_threshold", "threshold": 10, "description": "See enemy next action type" },
+      "stage_3": { "condition": "drive_threshold", "threshold": 10, "description": "Fights move to overworld" },
+      "stage_4": { "condition": "stability_threshold", "threshold": 10, "description": "Move+act on same beat" }
+    },
+    "character_creation": {
+      "base_distribution": [5, 5, 5],
+      "redistribute_points": 3,
+      "inverse_mapping": {
+        "calm": "drive",
+        "confidence": "insight",
+        "passion": "stability"
+      }
+    }
+  },
+
+  "economy": {
+    "currency": "silver",
+    "income": {
+      "farm_chores": { "amount": 1, "frequency": "daily", "description": "Eggs + milking" },
+      "slime_clearing": { "amount": 1, "frequency": "per_slime", "description": "Farmer's field" },
+      "side_jobs": { "amount": 1, "frequency": "daily", "spawn_chance": 0.25, "description": "Neighbor farms" }
+    },
+    "expenses": {
+      "barn_rent": { "amount": 3, "frequency": "daily", "auto_draft": true },
+      "bar_drink": { "amount": 1, "frequency": "nightly", "optional": true, "blocks_reflection": true },
+      "guild_membership": { "amount": 1, "frequency": "daily", "optional": true },
+      "bank_account_fee": { "amount": 5, "frequency": "weekly", "optional": true },
+      "bank_overdraft": { "amount": 10, "frequency": "on_overdraft", "optional": false }
+    }
+  },
+
+  "items": {
+    "weapons": {
+      "stick": {
+        "price": 0,
+        "damage_multiplier": 1.0,
+        "beats_per_attack": 1,
+        "description": "A sturdy branch. Gets the job done."
+      },
+      "short_sword": {
+        "price": 8,
+        "damage_multiplier": 1.1,
+        "beats_per_attack": 1,
+        "shop_description": "A fine blade! Can end combat in up to five fewer turns!",
+        "description": "Marginally sharper than a stick."
+      },
+      "heavy_blade": {
+        "price": 25,
+        "damage_multiplier": 1.5,
+        "beats_per_attack": 2,
+        "shop_description": "Our finest steel! Devastate your enemies with unmatched power!",
+        "description": "Hits harder. Swings slower."
+      }
+    },
+    "armor": {
+      "none": {
+        "price": 0,
+        "damage_reduction": 0,
+        "movement_cost": 0
+      },
+      "light_armor": {
+        "price": 10,
+        "damage_reduction": 0.05,
+        "movement_cost": 1,
+        "shop_description": "Stay nimble while staying protected!",
+        "description": "Barely noticeable protection."
+      },
+      "heavy_armor": {
+        "price": 30,
+        "damage_reduction": 0.1,
+        "movement_cost": 2,
+        "shop_description": "Nothing gets through this! Walk tall, warrior!",
+        "description": "Slows you down more than it helps."
+      }
+    }
+  },
+
+  "npcs": {
+    "farmer": {
+      "role": "benefactor",
+      "location": "farm",
+      "offers": ["barn_lodging", "farm_chores", "slime_clearing"],
+      "dialogue_file": "farmer.ink"
+    },
+    "weaponsmith": {
+      "role": "vendor",
+      "location": "weapon_shop",
+      "sells": ["short_sword", "heavy_blade"],
+      "dialogue_file": "weaponsmith.ink"
+    },
+    "armorer": {
+      "role": "vendor",
+      "location": "armor_shop",
+      "sells": ["light_armor", "heavy_armor"],
+      "dialogue_file": "armorer.ink"
+    },
+    "guild_master": {
+      "role": "trainer",
+      "location": "fighters_guild",
+      "offers": ["guild_membership"],
+      "dialogue_file": "guild_master.ink"
+    },
+    "bartender": {
+      "role": "vendor",
+      "location": "bar",
+      "sells": ["bar_drink"],
+      "dialogue_file": "bartender.ink"
+    },
+    "banker": {
+      "role": "vendor",
+      "location": "bank",
+      "offers": ["bank_account"],
+      "dialogue_file": "banker.ink"
+    }
+  },
+
+  "flags": {
+    "story_progression": {
+      "farmer_met": { "set_by": "first_farmer_interaction", "checked_by": ["farm_chores_available"] },
+      "guild_joined": { "set_by": "guild_master_join", "checked_by": ["guild_daily_fee", "guild_training_available"] },
+      "bank_account_opened": { "set_by": "banker_open_account", "checked_by": ["bank_weekly_fee", "bank_overdraft"] }
+    },
+    "reflection": {
+      "calm_reflection_count": { "type": "int", "range": [0, 3], "triggers_flip_at": 3 },
+      "confidence_reflection_count": { "type": "int", "range": [0, 3], "triggers_flip_at": 3 },
+      "passion_reflection_count": { "type": "int", "range": [0, 3], "triggers_flip_at": 3 },
+      "drive_flipped": { "type": "bool", "set_by": "calm_reflection_3" },
+      "insight_flipped": { "type": "bool", "set_by": "confidence_reflection_3" },
+      "stability_flipped": { "type": "bool", "set_by": "passion_reflection_3" }
+    },
+    "economy": {
+      "drink_count": { "type": "int", "description": "Total drinks bought at bar" },
+      "days_in_town": { "type": "int", "description": "Total days since arrival" }
+    }
+  },
+
+  "enemies": {
+    "green_slime": {
+      "stats": { "drive": 3, "insight": 2, "stability": 2 },
+      "behavior": "passive_until_hit",
+      "pattern": ["idle", "move_toward", "attack"],
+      "location": "farm_field",
+      "loot": { "silver": 1 }
+    }
+  },
+
+  "locations": {
+    "farm": { "type": "interior", "npcs": ["farmer"], "services": ["barn_lodging", "farm_chores"] },
+    "farm_field": { "type": "outdoor", "encounters": ["green_slime"] },
+    "weapon_shop": { "type": "interior", "npcs": ["weaponsmith"] },
+    "armor_shop": { "type": "interior", "npcs": ["armorer"] },
+    "fighters_guild": { "type": "interior", "npcs": ["guild_master"] },
+    "bar": { "type": "interior", "npcs": ["bartender"] },
+    "bank": { "type": "interior", "npcs": ["banker"] },
+    "town_square": { "type": "outdoor", "connects_to": ["farm", "weapon_shop", "armor_shop", "fighters_guild", "bar", "bank"] }
+  },
+
+  "combat": {
+    "time_signature": "4/4",
+    "planning_bars": 3,
+    "execution_bar": 4,
+    "bpm_range": { "early": [84, 96] },
+    "actions": ["move", "attack", "block", "dodge"],
+    "recovery": {
+      "do_nothing": { "restores": "lowest_stat", "amount": 1 }
+    }
+  },
+
+  "progression": {
+    "drink_blocks_reflection": true,
+    "reflections_per_flip": 3,
+    "flip_order": "player_choice"
+  }
+}

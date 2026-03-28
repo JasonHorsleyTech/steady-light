@@ -1,22 +1,22 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx tsx
 // Compile .ink files to .ink.json using inkjs compiler.
 //
 // Usage:
-//   node workshop/dialogue/compile-ink.js <input.ink> [output.ink.json]
-//   node workshop/dialogue/compile-ink.js assets/dialogue/farmer.ink
-//   node workshop/dialogue/compile-ink.js assets/dialogue/farmer.ink assets/dialogue/farmer.ink.json
+//   npx tsx workshop/dialogue/compile-ink.ts <input.ink> [output.ink.json]
+//   npx tsx workshop/dialogue/compile-ink.ts assets/dialogue/farmer.ink
 //
 // If no output path is given, replaces .ink with .ink.json.
 // Exits 0 on success, 1 on compile errors.
 
-const fs = require("fs");
-const path = require("path");
-const { Compiler } = require("inkjs/compiler/Compiler");
+import fs from "fs";
+import path from "path";
+import { Compiler } from "inkjs/compiler/Compiler";
+import { ErrorType } from "inkjs/engine/Error";
 
 const inputPath = process.argv[2];
 if (!inputPath) {
   console.error(
-    "Usage: compile-ink.js <input.ink> [output.ink.json]\n\nCompiles an ink file to ink.json for use with the inkjs runtime."
+    "Usage: compile-ink.ts <input.ink> [output.ink.json]\n\nCompiles an ink file to ink.json for use with the inkjs runtime."
   );
   process.exit(1);
 }
@@ -38,15 +38,24 @@ console.log();
 const inkSource = fs.readFileSync(absInput, "utf-8");
 
 // Compile with error collection
-let compiler;
+const errors: string[] = [];
+const warnings: string[] = [];
+
+let compiler: InstanceType<typeof Compiler>;
 try {
   compiler = new Compiler(inkSource, {
-    // File handler for INCLUDE statements — resolves relative to the input file
+    errorHandler: (message: string, errorType: ErrorType) => {
+      if (errorType === ErrorType.Error) {
+        errors.push(message);
+      } else if (errorType === ErrorType.Warning) {
+        warnings.push(message);
+      }
+    },
     fileHandler: {
-      ResolveInkFilename(filename) {
+      ResolveInkFilename(filename: string): string {
         return filename;
       },
-      LoadInkFileContents(filename) {
+      LoadInkFileContents(filename: string): string | null {
         const includePath = path.resolve(path.dirname(absInput), filename);
         if (!fs.existsSync(includePath)) {
           return null;
@@ -54,23 +63,19 @@ try {
         return fs.readFileSync(includePath, "utf-8");
       },
     },
-  });
+  } as any); // inkjs Compiler types don't include errorHandler/fileHandler, but they're required at runtime
 } catch (err) {
-  console.error(`COMPILE ERROR: ${err.message}`);
+  console.error(`COMPILE ERROR: ${(err as Error).message}`);
   process.exit(1);
 }
 
-let story;
+let story: ReturnType<typeof compiler.Compile>;
 try {
   story = compiler.Compile();
-} catch (err) {
-  console.error(`COMPILE ERROR: ${err.message}`);
-  process.exit(1);
+} catch {
+  // Compile() throws on errors even with errorHandler — fall through to report collected errors below
+  story = null as any; // checked for null after error reporting
 }
-
-// Report errors and warnings
-const errors = compiler.errors || [];
-const warnings = compiler.warnings || [];
 
 if (warnings.length > 0) {
   console.log(`Warnings (${warnings.length}):`);
@@ -92,7 +97,7 @@ if (!story) {
 }
 
 // Write output
-const json = story.ToJson();
+const json = story.ToJson() as string;
 const outputDir = path.dirname(absOutput);
 if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });

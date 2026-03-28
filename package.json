@@ -3,7 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "description": "Philosophical RPG disguised as a generic RPG",
-  "scripts": {},
+  "scripts": {
+    "compile-ink": "tsx workshop/dialogue/compile-ink.ts",
+    "test-dialogue": "tsx workshop/dialogue/test-dialogue.ts",
+    "lint-dialogue": "tsx workshop/dialogue/lint-dialogue.ts",
+    "tiled-to-ascii": "tsx workshop/maps/tiled-to-ascii.ts",
+    "pack-sprites": "tsx workshop/sprites/pack-sprites.ts",
+    "split-loop": "tsx workshop/audio/split-loop.ts",
+    "build-sprite": "tsx workshop/audio/build-sprite.ts",
+    "validate-canon": "tsx workshop/canon/validate-canon.ts"
+  },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "free-tex-packer-core": "^0.3.4",
