@@ -1,10 +1,12 @@
 import { gameStore } from '../core/store';
 import type { GameState } from '../core/store';
+import { eventBus } from '../core/event-bus';
 
 export interface SteadyLightDebug {
   getState: () => GameState;
   setState: (partial: Partial<GameState>) => void;
   toggleDebug: () => void;
+  eventBus: typeof eventBus;
 }
 
 declare global {
@@ -31,6 +33,7 @@ export function initStateInspector(): void {
         `[STEADY-LIGHT:DEBUG] Debug mode ${debugEnabled ? 'ON' : 'OFF'}`,
       );
     },
+    eventBus,
   };
 
   console.log(
