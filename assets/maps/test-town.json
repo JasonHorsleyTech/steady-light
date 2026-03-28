@@ -93,7 +93,7 @@
           "width": 64,
           "height": 32,
           "properties": [
-            { "name": "target_map", "type": "string", "value": "farm-field" }
+            { "name": "target_map", "type": "string", "value": "farm_field" }
           ]
         }
       ]
