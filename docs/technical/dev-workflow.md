@@ -1,10 +1,91 @@
 ---
-last_reviewed: 2026-03-24
+last_reviewed: 2026-03-31
 design_confidence: high
 implementation_confidence: medium
 ---
 
 # Development Workflow & AI Testing Infrastructure
+
+## Implementation Status
+
+Everything below describes the **design intent** for the dev/bridge infrastructure. Most of it is speculative — written before any game systems exist. Check this table before relying on anything.
+
+### Infrastructure Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Dev route framework** | Working | `/dev` index renders, `/dev/test` works. `DevLayout` auto-enables bridges on mount. Routes lazy-loaded and stripped from production. |
+| **State inspector** | Working | `window.STEADY_LIGHT.getState()`, `.setState()`, `.toggleDebug()`, `.eventBus` all functional. |
+| **Logger** | Working | 6 categories (STATE, EVENT, COMBAT, NPC, ECON, DEBUG), per-category toggles, `[STEADY-LIGHT:*]` prefix format. |
+| **EventBus** | Working | Typed pub/sub with `GameEventMap`. `on`/`off`/`emit`/`once`/`clear`. No game systems use it yet. |
+| **Zustand store** | Working (empty) | 6 state slices with defaults. No game logic writes to them. Types are speculative — expect changes when real systems exercise them. |
+| **BridgeManager** | Working (empty) | Toggle framework with `register`/`enable`/`disable`/`toggle` API. **Zero bridges are registered.** Calling `enableAll()` flips 6 booleans but produces no output because no `Bridge` implementations exist. |
+| **Debug overlay** | Not started | Described below but not built. |
+| **Automated scenarios** | Not started | `runScenario()` API described below but not built. |
+
+### Bridge Implementation Status
+
+| Bridge | Status | What it should do |
+|--------|--------|-------------------|
+| `grid` | **Not implemented** | ASCII render of combat grid (P=player, E=enemy, .=empty). See example below. |
+| `timing` | **Not implemented** | Translate audio timestamps to beat accuracy (ON BEAT / CLOSE / OFF). See example below. |
+| `state` | **Not implemented** | Dump game state in readable format (stats, equipment, flags). See example below. |
+| `dialogue` | **Not implemented** | Show current dialogue line, choices with indices, knot history. See example below. |
+| `economy` | **Not implemented** | Log transactions, balance changes, auto-drafts. |
+| `combat` | **Not implemented** | Log action queuing, execution, stat changes per beat. |
+
+**If you're implementing a game system and the bridge for it doesn't exist: build the bridge first.** The bridge is how you and the next agent verify the system works. A game system without a bridge is untestable by AI agents.
+
+Each bridge must implement the `Bridge` interface from `src/bridges/bridge-manager.ts`:
+```typescript
+interface Bridge {
+  readonly name: BridgeName;
+  init(): void;    // Hook into game systems (subscribe to events, store changes)
+  dispose(): void; // Unhook and clean up
+}
+```
+Register it with `bridgeManager.register(myBridge)`. The BridgeManager handles enable/disable lifecycle — calling `init()` when enabled and `dispose()` when disabled.
+
+### Dev Route Status
+
+| Route | Status | Notes |
+|-------|--------|-------|
+| `/dev` | Working | Index page listing all routes |
+| `/dev/test` | Working | Stub that logs `[STEADY-LIGHT:STATE] {scene: "dev-test", status: "initialized"}` |
+| `/dev/combat/:stage` | Not started | Listed in DevIndex as "coming soon" |
+| `/dev/dialogue/:tree` | Not started | Listed in DevIndex as "coming soon" |
+| `/dev/economy/:scenario` | Not started | Listed in DevIndex as "coming soon" |
+| `/dev/audio/sfx-test` | Not started | Listed in DevIndex as "coming soon" |
+| `/dev/world` | Not started | Listed in DevIndex as "coming soon" |
+
+### Workshop Tool Status
+
+| Tool | Status | Dependencies |
+|------|--------|-------------|
+| `workshop/audio/generate-sfx.sh` | Exists | Needs `ELEVEN_LABS_UNRESTRICTED_API_KEY` in `.env` |
+| `workshop/audio/split-loop.ts` | Exists | Needs `sox` (installed) |
+| `workshop/audio/build-sprite.ts` | Exists | Needs `sox` (installed) |
+| `workshop/audio/verify-audio.sh` | Exists | Needs `sox` (installed) |
+| `workshop/dialogue/compile-ink.ts` | Exists | Needs `inklecate` (**not installed**) |
+| `workshop/dialogue/test-dialogue.ts` | Exists | Needs `inkjs` (installed) |
+| `workshop/dialogue/lint-dialogue.ts` | Exists | Needs `inkjs` (installed) |
+| `workshop/maps/tiled-to-ascii.ts` | Exists | No external deps |
+| `workshop/canon/validate-canon.ts` | Exists | No external deps |
+| `workshop/sprites/pack-sprites.ts` | Exists | Needs `free-tex-packer-core` (installed) |
+
+"Exists" means the file is there and typechecks. Most tools have **not been tested end-to-end** against real data. Expect rough edges. Log friction to `FRICTION.md`.
+
+### Type System Status
+
+The types in `src/core/types/` were derived from `docs/canon/state-manifest.json` before any game code existed. They represent the **intended** data model, not a battle-tested one. When implementing a real system, you should:
+
+- **Use the existing types as a starting point**, not gospel
+- **Change them freely** if the implementation reveals they're wrong
+- **Keep the state manifest in sync** if you change types that correspond to canonical values
+
+There is no production code and no users. Restructuring is free.
+
+---
 
 ## The Core Problem
 
