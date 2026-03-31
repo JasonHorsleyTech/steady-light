@@ -13,6 +13,6 @@
     "declaration": false,
     "noEmit": true
   },
-  "include": ["workshop/**/*.ts", "src/**/*.ts"],
+  "include": ["workshop/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

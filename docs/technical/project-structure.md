@@ -1,33 +1,42 @@
 ---
-last_reviewed: 2026-03-24
-design_confidence: medium
-implementation_confidence: medium
+last_reviewed: 2026-03-28
+design_confidence: high
+implementation_confidence: high
 ---
 
 # Project Structure
 
-## Tech Stack Decision
+## Tech Stack (Locked)
 
-**React + Vite + TypeScript + Canvas (via PixiJS or raw 2D context)**
+**React 19 + Vite 8 + TypeScript 6 + PixiJS v8 + Zustand**
 
-Rationale:
-- **React** — Component model maps naturally to the dev route system. Each game system is a self-contained component with its own props/state. Jason mentioned React explicitly.
-- **Vite** — Fast dev server, HMR, simple config. Already mentioned in architecture.md.
-- **TypeScript** — Type safety helps Claude agents understand and modify code correctly. Catches bugs at compile time.
-- **Canvas for game rendering** — The actual game view (grid, overworld, combat) renders to a `<canvas>`. React handles UI layers (menus, dialogue boxes, stat displays, debug overlay) on top.
-- **PixiJS** — Likely best middle ground. Handles sprites, tilemaps, animation efficiently. Good WebGL/Canvas fallback. Well-documented enough for Claude to work with. Final decision deferred to Milestone 00.
+See `docs/technical/architecture.md` for the full stack table with rationale. Key points:
+- **React** — UI layers (menus, dialogue, debug overlays) over PixiJS canvas
+- **Vite** — Dev server, HMR, `import.meta.env.DEV` for dev-only code stripping
+- **TypeScript** — Strict mode everywhere. Two tsconfigs: `tsconfig.app.json` (game, ESNext/bundler) and `tsconfig.json` (workshop, Node16)
+- **PixiJS v8** — Pinned `~8.17.1`. Sprites, tilemaps, animation. Falls back to Canvas 2D if friction accumulates.
+- **Zustand** — Vanilla stores accessible outside React (game loop, bridges, PixiJS callbacks)
+- **inkjs** — Dialogue format (ink scripts compiled to `.ink.json`)
+- **Howler.js** — SFX playback (audio sprites)
+- **Raw Web Audio API** — Music playback (beat-synced scheduling)
+- **Tiled JSON** — Tilemap format
+- **TexturePacker JSON Hash** — Sprite sheet format (via free-tex-packer-core)
 
 ## Directory Layout
 
 ```
 steady-light/
 ├── CLAUDE.md                    # Project instructions for AI agents
-├── docs/                        # All design documentation
-│   ├── concept/
-│   ├── mechanics/
-│   ├── narrative/
-│   ├── technical/
-│   ├── brainstorm/
+├── PLAN.md                      # High-level delivery plan
+├── FRICTION.md                  # Recurring pain points log
+├── docs/
+│   ├── concept/                 # Game design philosophy, player psychology
+│   ├── mechanics/               # Attributes, combat, economy, progression
+│   ├── narrative/               # Story structure, characters, dialogue, tone
+│   ├── technical/               # Architecture, project structure, dev workflow
+│   ├── brainstorm/              # Raw session notes, unresolved ideas
+│   ├── canon/                   # Single source of truth for game values
+│   │   └── state-manifest.json  # Item prices, NPC IDs, stat thresholds, etc.
 │   └── roadmap/
 │       ├── overview.md
 │       └── chapter-1/
@@ -37,97 +46,64 @@ steady-light/
 │
 ├── src/
 │   ├── core/                    # Foundation
-│   │   ├── GameState.ts         # Central state management
-│   │   ├── SceneManager.ts      # Scene loading/transitions
-│   │   ├── EventBus.ts          # Pub/sub for system communication
-│   │   ├── SaveSystem.ts        # localStorage serialization
-│   │   └── types.ts             # Shared type definitions
+│   │   ├── types/               # All shared TypeScript types (barrel index.ts)
+│   │   │   ├── index.ts         # Barrel re-export
+│   │   │   ├── enums.ts         # All game enums
+│   │   │   ├── stats.ts         # RealStats, FalseStats, constants
+│   │   │   ├── player.ts        # PlayerState, equipment, inventory
+│   │   │   ├── combat.ts        # CombatState, grid, entities, timing
+│   │   │   ├── economy.ts       # EconomyState, shops, transactions
+│   │   │   ├── dialogue.ts      # DialogueState, lines, choices
+│   │   │   ├── progression.ts   # ProgressionState, reflection, flips
+│   │   │   ├── world.ts         # SceneState, NPCs, locations
+│   │   │   └── events.ts        # GameEventMap, typed event payloads
+│   │   ├── store.ts             # Zustand vanilla store (GameState)
+│   │   ├── event-bus.ts         # Typed pub/sub (uses GameEventMap)
+│   │   └── logger.ts            # Singleton structured [STEADY-LIGHT:*] logging
 │   │
-│   ├── combat/                  # Combat engine
-│   │   ├── CombatRunner.ts      # Core combat loop
-│   │   ├── ActionQueue.ts       # Beat-aligned action queuing
-│   │   ├── BeatSync.ts          # Music-to-combat timing
-│   │   ├── EnemyAI.ts           # Enemy behavior patterns
-│   │   └── CombatRenderer.ts    # Grid + sprite rendering
-│   │
-│   ├── dialogue/                # Dialogue system
-│   │   ├── DialogueRunner.ts    # Tree traversal, choice handling
-│   │   ├── DialogueRenderer.ts  # Text box, portrait, choices UI
-│   │   └── trees/               # Dialogue data files (JSON)
-│   │
-│   ├── economy/                 # Economy system
-│   │   ├── Wallet.ts            # Currency tracking
-│   │   ├── Shop.ts              # Buy/sell transactions
-│   │   └── DailyLedger.ts       # Rent, fees, auto-drafts
-│   │
-│   ├── progression/             # Stat & growth systems
-│   │   ├── Attributes.ts        # Drive/Insight/Stability (real) + display labels
-│   │   ├── Reflection.ts        # Sleep/drink/reflection arc
-│   │   ├── FlipMechanic.ts      # Three-night flip logic + UI relabel
-│   │   └── CharacterCreation.ts # Initial stat allocation (the deception)
-│   │
-│   ├── world/                   # Overworld & scenes
-│   │   ├── Overworld.ts         # Tile-based movement
-│   │   ├── NPCManager.ts        # NPC placement, interaction triggers
-│   │   ├── SceneDefinitions.ts  # Scene data (town, barn, shop, etc.)
-│   │   └── DayNightCycle.ts     # Time progression
-│   │
-│   ├── audio/                   # Audio system
-│   │   ├── MusicPlayer.ts       # Web Audio API playback
-│   │   ├── BPMTracker.ts        # Beat position tracking
-│   │   └── SFX.ts               # Sound effects
-│   │
-│   ├── input/                   # Input handling
-│   │   ├── InputManager.ts      # Keyboard + gamepad abstraction
-│   │   └── InputMapping.ts      # Key/button → action mapping
-│   │
-│   ├── ui/                      # React UI components
-│   │   ├── HUD.tsx              # In-game overlay (stats, silver, day)
-│   │   ├── Menu.tsx             # Pause/inventory menus
-│   │   ├── DialogueBox.tsx      # Dialogue text + choices
-│   │   └── StatBars.tsx         # Energy bar / three-bar display
+│   ├── combat/                  # Combat engine (future)
+│   ├── dialogue/                # ink/inkjs dialogue system (future)
+│   ├── economy/                 # Economy system (future)
+│   ├── progression/             # Stat & growth systems (future)
+│   ├── world/                   # Overworld & scenes (future)
+│   ├── audio/                   # Audio system (future)
+│   ├── input/                   # Input handling (future)
+│   ├── ui/                      # React UI components (future)
 │   │
 │   ├── bridges/                 # AI testing infrastructure
-│   │   ├── BridgeManager.ts     # Toggle system, master control
-│   │   ├── GridBridge.ts        # 8x8 grid → ASCII
-│   │   ├── TimingBridge.ts      # Audio timing → readable beat log
-│   │   ├── StateBridge.ts       # Full state dump → formatted text
-│   │   ├── DialogueBridge.ts    # Dialogue state → text
-│   │   ├── EconomyBridge.ts     # Transactions → log
-│   │   └── CombatBridge.ts      # Combat actions → play-by-play
+│   │   └── bridge-manager.ts    # Bridge interface + BridgeManager with per-bridge toggles
 │   │
 │   ├── debug/                   # Debug tools
-│   │   ├── DebugOverlay.tsx     # Visual overlay component
-│   │   ├── Logger.ts            # Structured [STEADY-LIGHT:*] logging
-│   │   └── StateInspector.ts    # window.STEADY_LIGHT.* exposure
+│   │   └── state-inspector.ts   # window.STEADY_LIGHT (state, bridges, logger, eventBus)
 │   │
 │   ├── dev/                     # Dev route harnesses
-│   │   ├── DevRouter.tsx        # Route definitions for /dev/*
-│   │   ├── DevCombat.tsx        # Isolated combat harness
-│   │   ├── DevDialogue.tsx      # Isolated dialogue harness
-│   │   ├── DevCharCreate.tsx    # Isolated char creation harness
-│   │   ├── DevEconomy.tsx       # Isolated economy harness
-│   │   ├── DevMusic.tsx         # Isolated music/beat harness
-│   │   ├── DevOverworld.tsx     # Isolated overworld harness
-│   │   └── scenarios/           # Automated test scenarios (JSON)
+│   │   ├── DevLayout.tsx        # Layout wrapper (auto-enables bridges)
+│   │   ├── DevIndex.tsx         # Index page listing all dev routes
+│   │   ├── DevTest.tsx          # Test route (verifies system works)
+│   │   └── scenarios/           # Automated test scenarios (future)
 │   │
-│   ├── App.tsx                  # Main app entry
-│   ├── GameApp.tsx              # Full game boot (used in production route)
+│   ├── App.tsx                  # Root component with BrowserRouter + lazy dev routes
 │   └── main.tsx                 # Vite entry point
 │
-├── assets/
-│   ├── sprites/                 # Character + enemy sprites
-│   ├── tiles/                   # Tileset images
-│   ├── audio/                   # Music tracks + SFX
+├── workshop/                    # Agent tools (not the game itself)
+│   ├── dialogue/                # ink compile, test, lint
+│   ├── maps/                    # Tiled JSON → ASCII
+│   ├── sprites/                 # Sprite packing
+│   ├── audio/                   # SFX split-loop, audio sprite building
+│   └── canon/                   # Canonical state validation
+│
+├── assets/                      # Game assets (future)
+│   ├── sprites/
+│   ├── tiles/
+│   ├── audio/
 │   │   ├── music/
 │   │   └── sfx/
-│   └── ui/                      # UI element graphics
+│   └── ui/
 │
-├── public/
-│   └── index.html
-│
+├── index.html                   # Vite entry HTML
 ├── package.json
-├── tsconfig.json
+├── tsconfig.json                # Workshop scripts (Node16)
+├── tsconfig.app.json            # Game code (ESNext/bundler, DOM, JSX)
 ├── vite.config.ts
 └── .gitignore
 ```
@@ -135,11 +111,11 @@ steady-light/
 ## Module Boundaries
 
 Each `src/` subdirectory is a self-contained module. Modules communicate via:
-1. **EventBus** — Pub/sub for cross-system events (e.g., combat emits "stat-changed", UI listens)
-2. **GameState** — Shared state store that modules read from and write to via controlled methods
-3. **Props** — Dev routes inject state directly as component props for isolation
+1. **EventBus** (`src/core/event-bus.ts`) — Typed pub/sub using `GameEventMap`. Use `eventBus.on()`, `.emit()`, `.once()`.
+2. **Zustand Store** (`src/core/store.ts`) — Shared vanilla store. Modules read with `gameStore.getState()` and write with `gameStore.setState()`. For React components, use `useStore(gameStore, selector)`.
+3. **Props** — Dev routes inject state directly as component props for isolation.
 
-Modules must NOT import directly from each other's internal files. If `combat/` needs stat data, it reads from `GameState`, not from `progression/Attributes.ts` directly.
+Modules must NOT import directly from each other's internal files. If `combat/` needs stat data, it reads from the Zustand store, not from `progression/` directly.
 
 ## Routing
 
@@ -156,8 +132,12 @@ Modules must NOT import directly from each other's internal files. If `combat/` 
 
 In production builds, `/dev/*` routes are stripped entirely.
 
+## Resolved Decisions
+- **PixiJS v8** — Pinned `~8.17.1`. Handles sprites, tilemaps, animation. Falls back to Canvas 2D only if FRICTION.md hits accumulate.
+- **Zustand (vanilla)** — Accessible outside React for game loop, bridges, PixiJS callbacks.
+- **ink/inkjs** — Dialogue trees authored as `.ink` scripts, compiled to `.ink.json` for runtime.
+- **TexturePacker JSON Hash** — Via `free-tex-packer-core` npm package (no GUI). PixiJS loads natively.
+
 ## Open Questions
-- PixiJS vs raw Canvas 2D? Need to evaluate Claude's ability to work with PixiJS.
-- State management: plain React context + reducer, or Zustand/Jotai for lighter weight?
-- Should dialogue trees be JSON or a custom DSL?
-- Sprite sheet format: TexturePacker JSON? Custom?
+- Input handling: keyboard primary? Mouse? Both?
+- Mobile support? (Probably not for v1)

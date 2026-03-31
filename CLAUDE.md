@@ -20,6 +20,46 @@ The game uses the Spec Ops: The Line approach: lean into boring, comfortable RPG
 2. **Combat:** Looks turn-based → actually simultaneous rhythm-based (both sides queue on the same beats, execute at the same time)
 3. **Progression:** Gear/guild/economy looks like progress → actually a treadmill. Real growth is combat mastery and self-study.
 
+## Project Maturity
+
+This is early scaffolding. There is no production code, no players, no shipped features. The build system, type definitions, bridge toggle framework, and dev route skeleton are in place, but no game systems are implemented yet.
+
+**Restructuring is free.** Types, store shape, event maps, directory structure — all were written speculatively before real implementation. If building a system reveals that earlier assumptions were wrong, change them. There is zero cost to restructuring.
+
+**Check `docs/technical/dev-workflow.md`** for a detailed status table of every bridge, dev route, workshop tool, and infrastructure component. It distinguishes between "working and tested" vs "exists but speculative" vs "not started." Read it before assuming any bridge or dev route is functional.
+
+## Quick Start
+
+```bash
+npm run dev          # Start Vite dev server (http://localhost:5173)
+npm run build        # Production build
+npm run typecheck    # Run both tsconfigs (app + workshop)
+```
+
+**Dev routes:** Navigate to `/dev` for the index of all dev route harnesses. Dev routes are stripped from production builds. Currently only `/dev/test` is functional — the rest are placeholders.
+
+**State inspector:** Open browser console and use:
+```js
+window.STEADY_LIGHT.getState()       // Full game state snapshot
+window.STEADY_LIGHT.setState({...})  // Merge partial state
+window.STEADY_LIGHT.toggleDebug()    // Toggle debug mode
+window.STEADY_LIGHT.eventBus         // Access EventBus (on/off/emit)
+```
+
+**Bridge toggle API:** The BridgeManager provides per-bridge toggles, but no bridge implementations exist yet. The toggles flip booleans — they don't produce output until a concrete `Bridge` class is registered for that name. See `docs/technical/dev-workflow.md` for the full status and how to implement a bridge.
+```js
+window.STEADY_LIGHT.bridges.enable('grid')   // Toggle on (no-op until GridBridge is built)
+window.STEADY_LIGHT.bridges.status()         // Show which toggles are on/off
+```
+
+**Logger controls:**
+```js
+window.STEADY_LIGHT.logger.enable('STATE')   // Enable a log category
+window.STEADY_LIGHT.logger.disable('COMBAT') // Disable a log category
+window.STEADY_LIGHT.logger.status()          // Show category states
+```
+Categories: STATE, EVENT, COMBAT, NPC, ECON, DEBUG.
+
 ## Technical Approach
 
 **Always TypeScript. No exceptions.** Every file — game code, workshop scripts, one-off utilities, config generators — must be TypeScript. Not JavaScript, even for a "quick script." TypeScript keeps agents' heads straight and they write it just as fast. Use `tsx` to run TypeScript files directly (no separate compile step for workshop scripts).
