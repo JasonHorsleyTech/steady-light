@@ -75,7 +75,9 @@ function buildDirectionMap(frames: string[]): Record<string, string> | undefined
 
 interface ExperimentConfig {
   type?: ManifestExperiment['type'];
+  direction_map?: Record<string, string>;
   frame_rate?: number;
+  notes?: string;
 }
 
 function readExperimentConfig(dir: string): ExperimentConfig {
@@ -123,11 +125,14 @@ for (const entry of readdirSync(BASE).sort()) {
     review_notes: prev?.review_notes ?? null,
   };
 
+  if (config.notes !== undefined) {
+    experiment.notes = config.notes;
+  }
   if (type === 'directional') {
-    experiment.direction_map = buildDirectionMap(frames);
+    experiment.direction_map = config.direction_map ?? buildDirectionMap(frames);
   }
   if (type === 'animation') {
-    experiment.frame_rate = config.frame_rate ?? 150;
+    experiment.frame_rate = config.frame_rate ?? 200;
   }
 
   experiments.push(experiment);
@@ -137,5 +142,15 @@ const manifest: Manifest = { generated: new Date().toISOString(), experiments };
 const outPath = join(BASE, 'manifest.json');
 writeFileSync(outPath, JSON.stringify(manifest, null, 2));
 
+// Summary
+const byType = new Map<string, number>();
+const byStatus = new Map<string, number>();
+for (const exp of experiments) {
+  byType.set(exp.type, (byType.get(exp.type) ?? 0) + 1);
+  byStatus.set(exp.status, (byStatus.get(exp.status) ?? 0) + 1);
+}
+
 console.log(`Wrote ${outPath}`);
 console.log(`  ${experiments.length} experiments, ${experiments.reduce((s, e) => s + e.frames.length, 0)} total frames`);
+console.log(`  By type: ${[...byType.entries()].map(([k, v]) => `${k}=${v}`).join(', ')}`);
+console.log(`  By status: ${[...byStatus.entries()].map(([k, v]) => `${k}=${v}`).join(', ')}`);
