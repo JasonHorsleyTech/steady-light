@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lightbox — Asset Review</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1a2e; color: #ccc; font-family: 'Courier New', monospace; padding: 24px;
+  }
+  a { color: #6faaff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  h1 { color: #eee; font-size: 20px; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 13px; margin-bottom: 24px; }
+
+  /* Background toggle bar */
+  .bg-toggle {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 24px;
+    font-size: 13px; color: #888;
+  }
+  .bg-toggle button {
+    background: #333; border: 1px solid #555; color: #ccc; padding: 4px 12px;
+    border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px;
+  }
+  .bg-toggle button.active { background: #6faaff; color: #111; border-color: #6faaff; }
+
+  /* Experiment section */
+  .experiment {
+    margin-bottom: 40px; border-bottom: 1px solid #2a2a4e; padding-bottom: 32px;
+  }
+  .experiment:last-child { border-bottom: none; }
+  .experiment-header {
+    margin-bottom: 16px;
+  }
+  .experiment-name {
+    font-size: 22px; color: #eee; font-weight: bold;
+  }
+  .experiment-id {
+    font-size: 14px; color: #6faaff; margin-top: 2px;
+  }
+  .experiment-notes {
+    font-size: 12px; color: #aaa; margin-top: 6px; line-height: 1.4;
+  }
+  .experiment-type {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px;
+    margin-left: 8px; vertical-align: middle;
+  }
+  .type-static { background: #2a4a2a; color: #8f8; }
+  .type-directional { background: #4a3a2a; color: #fa8; }
+  .type-animation { background: #2a3a4a; color: #8cf; }
+
+  /* Zoom row: all zoom levels side by side */
+  .zoom-row {
+    display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap;
+  }
+  .zoom-item {
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .zoom-label {
+    font-size: 11px; color: #888; margin-bottom: 4px;
+  }
+  .zoom-img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+  }
+  .preview-bg {
+    border: 1px solid #333; border-radius: 4px; padding: 4px;
+    display: inline-block; line-height: 0;
+  }
+
+  /* Checkerboard pattern via CSS */
+  .bg-checker {
+    background-image:
+      linear-gradient(45deg, #999 25%, transparent 25%),
+      linear-gradient(-45deg, #999 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #999 75%),
+      linear-gradient(-45deg, transparent 75%, #999 75%);
+    background-size: 8px 8px;
+    background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+    background-color: #ccc;
+  }
+
+  /* Placeholder for non-static types */
+  .placeholder {
+    background: #16213e; border: 1px solid #333; border-radius: 8px;
+    padding: 24px; color: #666; font-size: 13px;
+  }
+  .placeholder .thumbs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
+  .placeholder .thumbs img {
+    width: 48px; height: 48px; image-rendering: pixelated; background: #111; border-radius: 3px;
+  }
+
+  .empty { text-align: center; padding: 60px; color: #666; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const app = document.getElementById('app');
+
+// Current background style — shared across all previews
+let currentBg = '#111';
+
+async function loadManifest() {
+  try {
+    const res = await fetch('../pixellab/manifest.json');
+    if (!res.ok) throw new Error(`${res.status}`);
+    return await res.json();
+  } catch (e) {
+    app.innerHTML = `<div class="empty">
+      <p>No manifest.json found.</p>
+      <p style="margin-top:8px">Run: <code>npx tsx workshop/pixellab/build-manifest.ts</code></p>
+    </div>`;
+    return null;
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function applyBg(el) {
+  el.classList.remove('bg-checker');
+  if (currentBg === 'checker') {
+    el.style.background = '';
+    el.classList.add('bg-checker');
+  } else {
+    el.style.background = currentBg;
+  }
+}
+
+function applyAllBgs() {
+  document.querySelectorAll('.preview-bg').forEach(applyBg);
+}
+
+function renderStaticPreview(exp) {
+  const framePath = `../pixellab/${exp.id}/${exp.frames[0]}`;
+  const zooms = [1, 4, 8];
+
+  let html = `<div class="zoom-row">`;
+  for (const z of zooms) {
+    html += `<div class="zoom-item">`;
+    html += `<span class="zoom-label">${z}x</span>`;
+    html += `<div class="preview-bg" style="background: ${currentBg};">`;
+    html += `<img class="zoom-img" src="${framePath}" style="width: calc(var(--native-w, 32) * ${z}px); height: calc(var(--native-h, 32) * ${z}px);">`;
+    html += `</div></div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderPlaceholder(exp) {
+  const label = exp.type === 'directional' ? 'Directional preview' : 'Animation preview';
+  const thumbs = exp.frames.slice(0, 8).map(f =>
+    `<img src="../pixellab/${exp.id}/${f}" alt="${escHtml(f)}" loading="lazy">`
+  ).join('');
+  return `<div class="placeholder">${label} coming soon
+    <div class="thumbs">${thumbs}</div>
+  </div>`;
+}
+
+function renderPage(manifest) {
+  const { experiments } = manifest;
+  const staticExps = experiments.filter(e => e.type === 'static');
+
+  let html = `<h1>Lightbox — Asset Review</h1>`;
+  html += `<div class="subtitle">${experiments.length} experiment${experiments.length !== 1 ? 's' : ''} &middot; ${staticExps.length} static &middot; generated ${new Date(manifest.generated).toLocaleDateString()}</div>`;
+
+  // Background toggle
+  html += `<div class="bg-toggle">Background:`;
+  html += ` <button data-bg="#111" class="active">Dark</button>`;
+  html += ` <button data-bg="#888">Gray</button>`;
+  html += ` <button data-bg="#eee">Light</button>`;
+  html += ` <button data-bg="checker">Checker</button>`;
+  html += `</div>`;
+
+  if (experiments.length === 0) {
+    html += `<div class="empty">No experiments found.</div>`;
+    app.innerHTML = html;
+    return;
+  }
+
+  for (const exp of experiments) {
+    html += `<div class="experiment">`;
+    html += `<div class="experiment-header">`;
+    html += `<span class="experiment-name">${escHtml(exp.name)}</span>`;
+    html += `<span class="experiment-type type-${exp.type}">${exp.type}</span>`;
+    html += `<div class="experiment-id">${escHtml(exp.id)}</div>`;
+    if (exp.notes) {
+      html += `<div class="experiment-notes">${escHtml(exp.notes)}</div>`;
+    }
+    html += `</div>`;
+
+    if (exp.type === 'static') {
+      html += renderStaticPreview(exp);
+    } else {
+      html += renderPlaceholder(exp);
+    }
+
+    html += `</div>`;
+  }
+
+  app.innerHTML = html;
+
+  // After render: measure native image sizes and set CSS vars for proper scaling
+  document.querySelectorAll('.experiment').forEach(section => {
+    const imgs = section.querySelectorAll('.zoom-img');
+    if (imgs.length === 0) return;
+
+    const first = imgs[0];
+    function setNativeSize() {
+      if (first.naturalWidth && first.naturalHeight) {
+        imgs.forEach(img => {
+          const z = parseInt(img.closest('.zoom-item').querySelector('.zoom-label').textContent);
+          img.style.width = (first.naturalWidth * z) + 'px';
+          img.style.height = (first.naturalHeight * z) + 'px';
+        });
+      }
+    }
+
+    if (first.complete) {
+      setNativeSize();
+    } else {
+      first.addEventListener('load', setNativeSize);
+    }
+  });
+
+  // Wire up background toggle
+  document.querySelectorAll('.bg-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.bg-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentBg = btn.dataset.bg;
+      applyAllBgs();
+    });
+  });
+}
+
+(async () => {
+  const manifest = await loadManifest();
+  if (!manifest) return;
+  renderPage(manifest);
+})();
+</script>
+</body>
+</html>
