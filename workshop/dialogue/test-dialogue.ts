@@ -15,7 +15,6 @@
 
 import fs from "fs";
 import path from "path";
-// @ts-expect-error — inkjs is ESM but tsx handles the interop at runtime
 import { Story } from "inkjs";
 import { Compiler } from "inkjs/compiler/Compiler";
 import { ErrorType } from "inkjs/engine/Error";
@@ -98,7 +97,7 @@ if (absInput.endsWith(".ink.json")) {
     compileErrors.forEach((e: string) => console.error(`  ${e}`));
     process.exit(1);
   }
-  story = new Story(compiled.ToJson());
+  story = new Story(compiled.ToJson() as string);
 } else {
   console.error("ERROR: Input must be .ink or .ink.json");
   process.exit(1);
@@ -118,7 +117,7 @@ while (turnCount < maxTurns) {
   // Continue until we hit choices or end
   while (story.canContinue) {
     story.Continue();
-    const text = story.currentText.trim();
+    const text = story.currentText?.trim();
     if (text) {
       console.log(text);
     }
