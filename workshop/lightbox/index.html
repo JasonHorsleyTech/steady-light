@@ -82,7 +82,51 @@
     background-color: #ccc;
   }
 
-  /* Placeholder for non-static types */
+  /* Compass grid for directional previews */
+  .compass-container {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .compass-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 8px;
+    max-width: 520px;
+  }
+  .compass-cell {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 60px;
+  }
+  .compass-cell.empty { /* empty grid cells */ }
+  .compass-label {
+    font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase;
+  }
+  .compass-cell .preview-bg {
+    transition: outline-color 0.15s;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  .compass-cell.active .preview-bg {
+    outline-color: #6faaff;
+  }
+  .compass-cell.active .compass-label {
+    color: #6faaff; font-weight: bold;
+  }
+  .compass-img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+  }
+  .compass-controls {
+    display: flex; gap: 8px; align-items: center; font-size: 13px; color: #888;
+  }
+  .compass-controls button {
+    background: #333; border: 1px solid #555; color: #ccc; padding: 4px 14px;
+    border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px;
+  }
+  .compass-controls button.active { background: #6faaff; color: #111; border-color: #6faaff; }
+
+  /* Placeholder for non-implemented types */
   .placeholder {
     background: #16213e; border: 1px solid #333; border-radius: 8px;
     padding: 24px; color: #666; font-size: 13px;
@@ -156,7 +200,7 @@ function renderStaticPreview(exp) {
 }
 
 function renderPlaceholder(exp) {
-  const label = exp.type === 'directional' ? 'Directional preview' : 'Animation preview';
+  const label = 'Animation preview';
   const thumbs = exp.frames.slice(0, 8).map(f =>
     `<img src="../pixellab/${exp.id}/${f}" alt="${escHtml(f)}" loading="lazy">`
   ).join('');
@@ -165,12 +209,130 @@ function renderPlaceholder(exp) {
   </div>`;
 }
 
+// Compass layout positions: maps direction names to grid cell indices (0-8 in a 3x3 grid)
+// Grid: [NW=0, N=1, NE=2, W=3, center=4, E=5, SW=6, S=7, SE=8]
+const COMPASS_POSITIONS = {
+  nw: 0, northwest: 0,
+  n: 1, north: 1,
+  ne: 2, northeast: 2,
+  w: 3, west: 3,
+  e: 5, east: 5,
+  sw: 6, southwest: 6,
+  s: 7, south: 7,
+  se: 8, southeast: 8,
+};
+
+const COMPASS_LABELS = ['NW', 'N', 'NE', 'W', '', 'E', 'SW', 'S', 'SE'];
+
+// Cycle order: clockwise from N
+const CYCLE_ORDER_8 = [1, 2, 5, 8, 7, 6, 3, 0]; // N, NE, E, SE, S, SW, W, NW
+const CYCLE_ORDER_4 = [1, 5, 7, 3]; // N, E, S, W
+
+function renderDirectionalPreview(exp) {
+  const dirMap = exp.direction_map || {};
+  const directions = Object.keys(dirMap);
+  if (directions.length === 0) {
+    return `<div class="placeholder">No direction_map in manifest</div>`;
+  }
+
+  // Build 3x3 grid cells
+  const cells = new Array(9).fill(null);
+  for (const [dir, framePath] of Object.entries(dirMap)) {
+    const idx = COMPASS_POSITIONS[dir.toLowerCase()];
+    if (idx !== undefined) {
+      cells[idx] = { dir, framePath: `../pixellab/${exp.id}/${framePath}` };
+    }
+  }
+
+  const expIdAttr = escHtml(exp.id);
+
+  let html = `<div class="compass-container" data-exp-id="${expIdAttr}">`;
+  html += `<div class="compass-grid">`;
+  for (let i = 0; i < 9; i++) {
+    const cell = cells[i];
+    if (i === 4) {
+      // Center cell — empty or could show a dot
+      html += `<div class="compass-cell empty"></div>`;
+    } else if (cell) {
+      html += `<div class="compass-cell" data-cell-idx="${i}">`;
+      html += `<span class="compass-label">${COMPASS_LABELS[i]}</span>`;
+      html += `<div class="preview-bg">`;
+      html += `<img class="compass-img" src="${cell.framePath}" loading="lazy">`;
+      html += `</div>`;
+      html += `</div>`;
+    } else {
+      html += `<div class="compass-cell empty"></div>`;
+    }
+  }
+  html += `</div>`;
+
+  // Cycle controls
+  html += `<div class="compass-controls">`;
+  html += `<button class="cycle-btn" data-exp-id="${expIdAttr}">Cycle</button>`;
+  html += `<span class="cycle-status" data-exp-id="${expIdAttr}"></span>`;
+  html += `</div>`;
+  html += `</div>`;
+
+  return html;
+}
+
+// Active cycle timers: keyed by exp.id
+const cycleTimers = {};
+
+function startCycle(expId) {
+  const container = document.querySelector(`.compass-container[data-exp-id="${expId}"]`);
+  if (!container) return;
+
+  const cells = container.querySelectorAll('.compass-cell[data-cell-idx]');
+  const cellIndices = Array.from(cells).map(c => parseInt(c.dataset.cellIdx));
+  if (cellIndices.length === 0) return;
+
+  // Determine cycle order based on available directions
+  const has8 = cellIndices.some(i => [0, 2, 6, 8].includes(i));
+  const order = (has8 ? CYCLE_ORDER_8 : CYCLE_ORDER_4).filter(i => cellIndices.includes(i));
+  if (order.length === 0) return;
+
+  let step = 0;
+
+  function tick() {
+    // Clear all active states
+    cells.forEach(c => c.classList.remove('active'));
+    // Highlight current
+    const targetIdx = order[step % order.length];
+    const targetCell = container.querySelector(`.compass-cell[data-cell-idx="${targetIdx}"]`);
+    if (targetCell) targetCell.classList.add('active');
+
+    const statusEl = container.querySelector(`.cycle-status[data-exp-id="${expId}"]`);
+    if (statusEl) statusEl.textContent = COMPASS_LABELS[targetIdx];
+
+    step++;
+  }
+
+  tick(); // immediate first tick
+  cycleTimers[expId] = setInterval(tick, 600);
+}
+
+function stopCycle(expId) {
+  if (cycleTimers[expId]) {
+    clearInterval(cycleTimers[expId]);
+    delete cycleTimers[expId];
+  }
+  const container = document.querySelector(`.compass-container[data-exp-id="${expId}"]`);
+  if (container) {
+    container.querySelectorAll('.compass-cell').forEach(c => c.classList.remove('active'));
+    const statusEl = container.querySelector(`.cycle-status[data-exp-id="${expId}"]`);
+    if (statusEl) statusEl.textContent = '';
+  }
+}
+
 function renderPage(manifest) {
   const { experiments } = manifest;
-  const staticExps = experiments.filter(e => e.type === 'static');
+  const staticCount = experiments.filter(e => e.type === 'static').length;
+  const dirCount = experiments.filter(e => e.type === 'directional').length;
+  const animCount = experiments.filter(e => e.type === 'animation').length;
 
   let html = `<h1>Lightbox — Asset Review</h1>`;
-  html += `<div class="subtitle">${experiments.length} experiment${experiments.length !== 1 ? 's' : ''} &middot; ${staticExps.length} static &middot; generated ${new Date(manifest.generated).toLocaleDateString()}</div>`;
+  html += `<div class="subtitle">${experiments.length} experiment${experiments.length !== 1 ? 's' : ''} &middot; ${staticCount} static &middot; ${dirCount} directional &middot; ${animCount} animation &middot; generated ${new Date(manifest.generated).toLocaleDateString()}</div>`;
 
   // Background toggle
   html += `<div class="bg-toggle">Background:`;
@@ -199,6 +361,8 @@ function renderPage(manifest) {
 
     if (exp.type === 'static') {
       html += renderStaticPreview(exp);
+    } else if (exp.type === 'directional') {
+      html += renderDirectionalPreview(exp);
     } else {
       html += renderPlaceholder(exp);
     }
@@ -229,6 +393,40 @@ function renderPage(manifest) {
     } else {
       first.addEventListener('load', setNativeSize);
     }
+  });
+
+  // Directional compass images: measure first image, scale all to 4x zoom
+  document.querySelectorAll('.compass-container').forEach(container => {
+    const imgs = container.querySelectorAll('.compass-img');
+    if (imgs.length === 0) return;
+    const first = imgs[0];
+    function setCompassSizes() {
+      if (first.naturalWidth && first.naturalHeight) {
+        const zoom = 4;
+        imgs.forEach(img => {
+          img.style.width = (first.naturalWidth * zoom) + 'px';
+          img.style.height = (first.naturalHeight * zoom) + 'px';
+        });
+      }
+    }
+    if (first.complete) setCompassSizes();
+    else first.addEventListener('load', setCompassSizes);
+  });
+
+  // Wire up cycle buttons
+  document.querySelectorAll('.cycle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const expId = btn.dataset.expId;
+      if (btn.classList.contains('active')) {
+        btn.classList.remove('active');
+        btn.textContent = 'Cycle';
+        stopCycle(expId);
+      } else {
+        btn.classList.add('active');
+        btn.textContent = 'Stop';
+        startCycle(expId);
+      }
+    });
   });
 
   // Wire up background toggle
