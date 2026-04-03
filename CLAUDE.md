@@ -110,6 +110,7 @@ old-docs/            — Previous iteration documents (GPT sessions, earlier GDD
 | **Dev Route** | An isolated URL path (e.g., `/dev/combat/stage-0`) that instantiates a single game component with test data, independent of the full game. Used for focused development and testing. |
 | **Workshop** | The `workshop/` directory. Tools agents use to build the game — audio generators, format converters, scaffolders. Not the game itself; the production line's toolbox. |
 | **Friction Log** | `FRICTION.md` at project root. Agents log unexpected problems here so the next agent doesn't waste focus re-solving them. |
+| **Shakedown** | Hands-on discovery process for a new external creative tool (Pixel Labs, ElevenLabs, Suno, etc.). Jason + Claude figure out the real pipeline — API quirks, quality tricks, normalization needs — then encode findings into workshop tools and skills so agents can use it autonomously. Labeled S1, S2, etc. in PLAN.md. |
 
 ## Development Philosophy: Islands & Bridges
 

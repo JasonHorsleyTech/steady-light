@@ -80,17 +80,44 @@ These are currently "TBD" in the docs. Locking them prevents every future agent 
 
 **Critical:** BPMTracker must NOT use `setInterval` or `requestAnimationFrame`. Must schedule using `AudioContext.currentTime + offset` for sub-ms accuracy. This is the only way to hit the +-5ms target.
 
+#### Music Creation — SPIKE REQUIRED
+
+The system above handles music **playback and synchronization**. There is no pipeline for **creating the actual music tracks**. This is a critical gap — "Music = Time" is a design pillar, and combat architecturally depends on music existing.
+
+**The vision (aspirational, feasibility unknown):**
+
+Each location has a song. Each song is a 64-measure loop in 4/4 time, composed of 4-8 independent stems (drums, bass, melody, strings, ambient, etc.). Each stem has on-ramp/off-ramp transition points at every measure boundary.
+
+This enables programmatic, beat-accurate transitions:
+- Town → tavern: stems crossfade at the next measure boundary
+- Exploration → combat: combat stems swap in while shared rhythmic stems continue uninterrupted
+- Different enemies could trigger different combat stem variants
+- Traditional games do "peaceful.mp3 → 2s-transition.mp3 → combat.mp3" with a cross-fade. This would be live, musical, and seamless.
+
+**What the spike must determine:**
+1. What tool creates the music? (Suno, Udio, ElevenLabs, commissioned, procedural?)
+2. Can the tool output individual stems, or must stems be extracted from a mix?
+3. Is the multi-track layered approach feasible, or do we fall back to simpler per-scene MP3s?
+4. What format/metadata do stems need for Web Audio API synchronized playback?
+5. How are transition points authored and stored?
+
+**The spike's findings determine Milestone 10's architecture.** Multi-track stems mean `MusicPlayer.ts` manages N synchronized `AudioBufferSourceNode`s with per-stem volume envelopes. Single-track means a simpler player with crossfade transitions. This must be resolved before Milestone 10 design is finalized.
+
+**This is an interactive session (Jason + Claude), not a Ralph loop.** Same shakedown pattern as the ElevenLabs SFX pipeline discovery.
+
 ### 4. Pixel Art / Sprites
 
 | Layer | Implementation |
 |-------|---------------|
 | **Delivery** | PixiJS `Spritesheet` from TexturePacker JSON Hash format. Atlas PNGs in `assets/sprites/` (one per category). Animation definitions in JSON (frame sequence, duration, loop). |
-| **Workshop** | `workshop/sprites/generate-sprite.sh` — calls image generation API (DALL-E 3 or similar), post-processes with ImageMagick (resize to pixel grid, palette normalize, bg remove). `workshop/sprites/normalize-palette.sh` — remaps all colors to the project's locked palette via ImageMagick. `workshop/sprites/pack-sprites.sh` — runs free-tex-packer-core on a frame directory, outputs atlas PNG + JSON manifest. `workshop/sprites/verify-sprite.sh` — reports dimensions, color count, palette compliance %, transparency. `workshop/sprites/render-ascii.sh` — converts sprite to ASCII art so agents can "see" it. |
+| **Workshop** | `workshop/sprites/generate-sprite.ts` — calls Pixel Labs API (or equivalent pixel art service). If API quality is insufficient, falls back to Chrome MCP browser automation (same shakedown pattern as ElevenLabs SFX). Post-processes with ImageMagick (resize to pixel grid, palette normalize, bg remove). `workshop/sprites/generate-tileset.ts` — generates coherent tileset sheets for Tiled maps. Distinct pipeline from entity sprites: tiles must be seamless, maintain consistent top-down perspective, and work at exact grid dimensions. Handles relative sizing rules (barn = 2x width of farmhouse, etc.). `workshop/sprites/normalize-palette.sh` — remaps all colors to the project's locked palette via ImageMagick. `workshop/sprites/pack-sprites.sh` — runs free-tex-packer-core on a frame directory, outputs atlas PNG + JSON manifest. `workshop/sprites/verify-sprite.sh` — reports dimensions, color count, palette compliance %, transparency. `workshop/sprites/render-ascii.sh` — converts sprite to ASCII art so agents can "see" it. |
 | **Dev route** | `/dev/sprites/viewer` — shows all atlases, individual frames, animations. `/dev/animation/viewer` — play animations, adjust frame rate. |
 | **Bridge** | `SpriteBridge.ts` — loaded sprites inventory, placeholder vs final status, animation events, missing sprite warnings. |
 | **Skill** | `.claude/skills/generate-sprites/SKILL.md` — locked palette hex values, dimension requirements per category, prompt templates, how to generate/normalize/pack/verify. |
 
 **Placeholder strategy:** `workshop/sprites/generate-placeholders.sh` creates colored rectangles with text labels for any missing assets in the manifest. The game always boots, even with zero real art.
+
+**Shakedown required (S1).** The Pixel Labs pipeline needs the same discovery process that the ElevenLabs SFX pipeline went through. Open questions: does the API produce results as good as the web UI? What prompt templates work for characters vs buildings vs terrain? How do you enforce consistent sizing when a barn must be 2x the width of a farmhouse? How do you generate tileable terrain sheets vs standalone entity sprites? The shakedown resolves these and encodes the answers into workshop tools and the `generate-sprites` skill.
 
 ### 5. Tile Maps / Level Design
 
@@ -217,11 +244,23 @@ Define all shared TypeScript types BEFORE any game code:
 
 Replace custom JSON dialogue with ink/inkjs. `DialogueRunner` wraps inkjs `Story` class. Dev route loads compiled `.ink.json`. Bridge reads `currentText`, `currentChoices`, `currentTags`.
 
+### Shakedowns (Interactive — Not Ralph Loops)
+
+External tool pipelines require hands-on discovery before agents can use them autonomously. These are interactive sessions — Jason and Claude spending a day figuring out what works, what doesn't, and what the actual pipeline looks like.
+
+The ElevenLabs SFX pipeline is the template: what started as "just call the API" turned into discovering the API uses older models, that browser automation gets better results, that volumes need normalization, and that generating a 10-second loop and splitting individual footfalls beats trying to generate a single footfall. Every external creative tool has this kind of hidden knowledge. A shakedown extracts it and encodes it into workshop tools and skills so agents can use the pipeline autonomously afterward.
+
+| Shakedown | Scope | Must Complete Before |
+|-----------|-------|---------------------|
+| **S1: Pixel Art** | Pixel Labs (or equivalent): API vs Chrome MCP browser automation, prompt templates for characters vs buildings vs terrain, sizing/consistency rules, tileset generation workflow | 00a (workshop tools wrap the proven pipeline) |
+| **S2: Music Creation** | Tool discovery (Suno/Udio/ElevenLabs/other), multi-track stem feasibility, transition architecture, format requirements for Web Audio API | 10 (music system architecture depends on findings) |
+
 ### Full Revised Sequence
 
 ```
-00a  Workshop Foundation ............. tools, skills, canon manifest
- 00  Project Scaffolding ............. React/TS/Vite, types, Zustand, dev routes, bridges
+ S1  Pixel Art Shakedown ............. [interactive] pipeline discovery, Pixel Labs or equivalent
+00a  Workshop Foundation ............. tools, skills, canon manifest (wraps S1 findings)
+ 00  Project Scaffolding ............. React/TS/Vite, types, Zustand, dev routes, bridges [DONE]
  01  Grid & Movement ................. 8x8 grid, player token, ASCII bridge
  02  Dialogue System ................. ink/inkjs, dialogue box, dialogue bridge
  03  Character Creation .............. stat allocation UI, inverse mapping deception
@@ -230,16 +269,18 @@ Replace custom JSON dialogue with ink/inkjs. `DialogueRunner` wraps inkjs `Story
  06  Basic Combat (Stage 0) ......... action queue, execution, slime AI, combat bridge
  07  Economy System .................. silver, shops, rent, treadmill
  08  Day Cycle & Sleep ............... time phases, drink fork, sleep logic
+ S2  Music Creation Spike ............ [interactive] tool discovery, multi-track feasibility
  09  Reflection & Flip ............... three-night arcs, flip event, UI relabel
- 10  Music & Beat System ............. Web Audio, BPM tracking, timing bridge (parallel track)
+ 10  Music & Beat System ............. Web Audio, BPM tracking, timing bridge (shaped by S2)
  11  Combat + Music Integration ...... beat-synced actions, simultaneous resolution
  12  Chapter 1 Integration ........... full flow, save/load, playthrough verification
 13a  Content: Dialogue & Economy ..... all NPC dialogue, price tuning
 13b  Content: Paradigm Shift Polish .. flip moments, combat stage transitions, edge cases
-13c  Content: Asset Replacement ...... placeholder art -> generated art, placeholder SFX -> real SFX
+13c  Content: Asset Generation ....... pixel art, SFX, music tracks (all pipelines proven)
 ```
 
-Music (10) can start in parallel after 00. Dialogue (02) and Character Creation (03) can run in parallel. 13a-13c can run in parallel.
+S1 and S2 have no technical dependencies on the codebase — they're tool exploration. S1 is slotted first because 00a needs its findings. S2 is slotted between 08 and 09 to give breathing room before the music system build, but it can happen whenever Jason has a day to dedicate.
+Dialogue (02) and Character Creation (03) can run in parallel. 13a-13c can run in parallel.
 
 ---
 
@@ -270,6 +311,8 @@ Systems built for Chapter 1 that pay forward without rewrites:
 | AI-generated art inconsistency | Palette normalization tool. Strict dimensions. Accept Ch1 art is rough; plan a 13c polish pass. |
 | Integration complexity at Milestone 12 | Zustand store is single source of truth. Types defined upfront. EventBus for cross-system events. Canonical playthrough scripts catch regressions. |
 | Overnight session exceeds one milestone | Each milestone has "checkpoint" states where the project is working even if incomplete. Agent commits at checkpoint, next agent continues. |
+| Music creation pipeline unknown | Shakedown S2 resolves tooling before Milestone 10 design. Fallback: simple per-scene MP3s with crossfade transitions (functional but not the vision). |
+| Pixel art tool consistency | Shakedown S1 resolves prompt templates and sizing rules. Tilesets need a separate workflow from entity sprites. Palette normalization + strict dimensions as guardrails. |
 
 ---
 
