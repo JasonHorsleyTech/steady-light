@@ -203,6 +203,79 @@
   }
 
   .empty { text-align: center; padding: 60px; color: #666; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 3px;
+    margin-left: 8px; vertical-align: middle; font-weight: bold; text-transform: uppercase;
+  }
+  .status-unreviewed { background: #4a4a2a; color: #fd0; }
+  .status-approved { background: #2a4a2a; color: #8f8; }
+  .status-rejected { background: #4a2a2a; color: #f88; }
+  .status-needs-changes { background: #4a3a1a; color: #fa8; }
+
+  /* Header summary */
+  .summary {
+    display: flex; gap: 16px; font-size: 13px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .summary-item { color: #888; }
+  .summary-item strong { font-weight: bold; }
+  .summary-item.unreviewed strong { color: #fd0; }
+  .summary-item.approved strong { color: #8f8; }
+  .summary-item.rejected strong { color: #f88; }
+  .summary-item.needs-changes strong { color: #fa8; }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 24px;
+    font-size: 13px; color: #888;
+  }
+  .filter-bar button {
+    background: #333; border: 1px solid #555; color: #ccc; padding: 6px 16px;
+    border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px;
+  }
+  .filter-bar button.active { background: #6faaff; color: #111; border-color: #6faaff; }
+  .filter-bar button:hover:not(.active) { background: #444; }
+
+  /* Card grid */
+  .card-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .card {
+    background: #16213e; border: 1px solid #333; border-radius: 8px;
+    padding: 16px; cursor: pointer; transition: border-color 0.15s, opacity 0.15s;
+  }
+  .card:hover { border-color: #6faaff; }
+  .card.status-dim-approved { opacity: 0.5; }
+  .card.status-dim-rejected { opacity: 0.35; }
+  .card.status-dim-rejected .card-name { text-decoration: line-through; }
+  .card-header { margin-bottom: 12px; }
+  .card-name { font-size: 18px; color: #eee; font-weight: bold; margin-bottom: 2px; }
+  .card-id { font-size: 12px; color: #6faaff; margin-bottom: 6px; }
+  .card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .card-thumb {
+    margin-bottom: 12px; display: flex; justify-content: center;
+    min-height: 80px; align-items: center;
+  }
+  .card-thumb .preview-bg {
+    display: inline-block; line-height: 0;
+  }
+  .card-thumb img {
+    image-rendering: pixelated; image-rendering: crisp-edges; display: block;
+  }
+  .card-notes {
+    font-size: 11px; color: #888; line-height: 1.4;
+    max-height: 40px; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Detail view */
+  .detail-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #6faaff; cursor: pointer; margin-bottom: 16px;
+    background: none; border: none; font-family: inherit; padding: 0;
+  }
+  .detail-back:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -487,79 +560,249 @@ function stopCycle(expId) {
   }
 }
 
-function renderPage(manifest) {
+// Current view state
+let currentFilter = 'all'; // 'all' | 'unreviewed' | 'needs-attention'
+let currentView = 'index'; // 'index' | 'detail'
+let currentExpId = null;
+let manifestData = null;
+
+function statusLabel(status) {
+  return (status || 'unreviewed').replace('-', '-');
+}
+
+function getStatusCounts(experiments) {
+  const counts = { unreviewed: 0, approved: 0, rejected: 0, 'needs-changes': 0 };
+  for (const exp of experiments) {
+    const s = exp.status || 'unreviewed';
+    if (counts[s] !== undefined) counts[s]++;
+  }
+  return counts;
+}
+
+function filterExperiments(experiments, filter) {
+  if (filter === 'all') return experiments;
+  if (filter === 'unreviewed') return experiments.filter(e => (e.status || 'unreviewed') === 'unreviewed');
+  if (filter === 'needs-attention') return experiments.filter(e => {
+    const s = e.status || 'unreviewed';
+    return s === 'rejected' || s === 'needs-changes';
+  });
+  return experiments;
+}
+
+function cardDimClass(status) {
+  const s = status || 'unreviewed';
+  if (s === 'approved') return ' status-dim-approved';
+  if (s === 'rejected') return ' status-dim-rejected';
+  return '';
+}
+
+function getCardThumbSrc(exp) {
+  if (exp.type === 'static' && exp.frames.length > 0) {
+    return `../pixellab/${exp.id}/${exp.frames[0]}`;
+  }
+  if (exp.type === 'directional' && exp.direction_map) {
+    // Use south-facing or first available direction
+    const dm = exp.direction_map;
+    const src = dm.south || dm.s || dm.east || dm.e || Object.values(dm)[0];
+    if (src) return `../pixellab/${exp.id}/${src}`;
+  }
+  if (exp.type === 'animation' && exp.frames.length > 0) {
+    return `../pixellab/${exp.id}/${exp.frames[0]}`;
+  }
+  return null;
+}
+
+function renderIndexPage(manifest) {
   const { experiments } = manifest;
-  const staticCount = experiments.filter(e => e.type === 'static').length;
-  const dirCount = experiments.filter(e => e.type === 'directional').length;
-  const animCount = experiments.filter(e => e.type === 'animation').length;
+  const counts = getStatusCounts(experiments);
+
+  // Pick default filter: unreviewed if any exist, else all
+  if (currentFilter === 'all' && counts.unreviewed > 0 && currentView === 'index') {
+    // Only auto-select on first load
+    if (!manifestData) currentFilter = 'unreviewed';
+  }
+
+  const filtered = filterExperiments(experiments, currentFilter);
 
   let html = `<h1>Lightbox — Asset Review</h1>`;
-  html += `<div class="subtitle">${experiments.length} experiment${experiments.length !== 1 ? 's' : ''} &middot; ${staticCount} static &middot; ${dirCount} directional &middot; ${animCount} animation &middot; generated ${new Date(manifest.generated).toLocaleDateString()}</div>`;
 
-  // Background toggle
-  html += `<div class="bg-toggle">Background:`;
-  html += ` <button data-bg="#111" class="active">Dark</button>`;
-  html += ` <button data-bg="#888">Gray</button>`;
-  html += ` <button data-bg="#eee">Light</button>`;
-  html += ` <button data-bg="checker">Checker</button>`;
+  // Summary counts
+  html += `<div class="summary">`;
+  html += `<span class="summary-item unreviewed"><strong>${counts.unreviewed}</strong> unreviewed</span>`;
+  html += `<span class="summary-item approved"><strong>${counts.approved}</strong> approved</span>`;
+  html += `<span class="summary-item rejected"><strong>${counts.rejected}</strong> rejected</span>`;
+  if (counts['needs-changes'] > 0) {
+    html += `<span class="summary-item needs-changes"><strong>${counts['needs-changes']}</strong> needs changes</span>`;
+  }
   html += `</div>`;
 
-  if (experiments.length === 0) {
-    html += `<div class="empty">No experiments found.</div>`;
+  // Filter bar
+  html += `<div class="filter-bar">Filter:`;
+  html += ` <button data-filter="all"${currentFilter === 'all' ? ' class="active"' : ''}>All (${experiments.length})</button>`;
+  html += ` <button data-filter="unreviewed"${currentFilter === 'unreviewed' ? ' class="active"' : ''}>Unreviewed (${counts.unreviewed})</button>`;
+  const needsAttentionCount = counts.rejected + counts['needs-changes'];
+  html += ` <button data-filter="needs-attention"${currentFilter === 'needs-attention' ? ' class="active"' : ''}>Needs Attention (${needsAttentionCount})</button>`;
+  html += `</div>`;
+
+  if (filtered.length === 0) {
+    html += `<div class="empty">No assets match this filter.</div>`;
     app.innerHTML = html;
+    wireFilterButtons();
     return;
   }
 
-  for (const exp of experiments) {
-    html += `<div class="experiment">`;
-    html += `<div class="experiment-header">`;
-    html += `<span class="experiment-name">${escHtml(exp.name)}</span>`;
+  // Card grid
+  html += `<div class="card-grid">`;
+  for (const exp of filtered) {
+    const status = exp.status || 'unreviewed';
+    html += `<div class="card${cardDimClass(status)}" data-exp-id="${escHtml(exp.id)}">`;
+    html += `<div class="card-header">`;
+    html += `<div class="card-name">${escHtml(exp.name)}</div>`;
+    html += `<div class="card-id">${escHtml(exp.id)}</div>`;
+    html += `<div class="card-badges">`;
     html += `<span class="experiment-type type-${exp.type}">${exp.type}</span>`;
-    html += `<div class="experiment-id">${escHtml(exp.id)}</div>`;
-    if (exp.notes) {
-      html += `<div class="experiment-notes">${escHtml(exp.notes)}</div>`;
-    }
+    html += `<span class="status-badge status-${status}">${statusLabel(status)}</span>`;
+    html += `</div>`;
     html += `</div>`;
 
-    if (exp.type === 'static') {
-      html += renderStaticPreview(exp);
-    } else if (exp.type === 'directional') {
-      html += renderDirectionalPreview(exp);
-    } else if (exp.type === 'animation') {
-      html += renderAnimationPreview(exp);
-    } else {
-      html += `<div class="placeholder">Unknown type: ${escHtml(exp.type)}</div>`;
+    // Thumbnail
+    const thumbSrc = getCardThumbSrc(exp);
+    if (thumbSrc) {
+      html += `<div class="card-thumb"><div class="preview-bg"><img src="${thumbSrc}" loading="lazy"></div></div>`;
+    }
+
+    // Review notes
+    const notes = exp.review_notes || exp.notes;
+    if (notes) {
+      html += `<div class="card-notes">${escHtml(notes)}</div>`;
     }
 
     html += `</div>`;
   }
+  html += `</div>`;
 
   app.innerHTML = html;
 
-  // After render: measure native image sizes and set CSS vars for proper scaling
-  document.querySelectorAll('.experiment').forEach(section => {
-    const imgs = section.querySelectorAll('.zoom-img');
-    if (imgs.length === 0) return;
-
-    const first = imgs[0];
-    function setNativeSize() {
-      if (first.naturalWidth && first.naturalHeight) {
-        imgs.forEach(img => {
-          const z = parseInt(img.closest('.zoom-item').querySelector('.zoom-label').textContent);
-          img.style.width = (first.naturalWidth * z) + 'px';
-          img.style.height = (first.naturalHeight * z) + 'px';
-        });
+  // Scale card thumbnails to 3x zoom
+  document.querySelectorAll('.card-thumb img').forEach(img => {
+    function setThumbSize() {
+      if (img.naturalWidth && img.naturalHeight) {
+        const zoom = 3;
+        img.style.width = (img.naturalWidth * zoom) + 'px';
+        img.style.height = (img.naturalHeight * zoom) + 'px';
       }
     }
-
-    if (first.complete) {
-      setNativeSize();
-    } else {
-      first.addEventListener('load', setNativeSize);
-    }
+    if (img.complete) setThumbSize();
+    else img.addEventListener('load', setThumbSize);
   });
 
-  // Directional compass images: measure first image, scale all to 4x zoom
+  // Wire filter buttons
+  wireFilterButtons();
+
+  // Wire card clicks
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => {
+      currentExpId = card.dataset.expId;
+      currentView = 'detail';
+      renderCurrentView();
+    });
+  });
+
+  applyAllBgs();
+}
+
+function wireFilterButtons() {
+  document.querySelectorAll('.filter-bar button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentFilter = btn.dataset.filter;
+      renderCurrentView();
+    });
+  });
+}
+
+function renderDetailPage(manifest) {
+  const exp = manifest.experiments.find(e => e.id === currentExpId);
+  if (!exp) {
+    currentView = 'index';
+    renderCurrentView();
+    return;
+  }
+
+  const status = exp.status || 'unreviewed';
+
+  let html = `<button class="detail-back">&larr; Back to index</button>`;
+  html += `<div class="experiment">`;
+  html += `<div class="experiment-header">`;
+  html += `<span class="experiment-name">${escHtml(exp.name)}</span>`;
+  html += `<span class="experiment-type type-${exp.type}">${exp.type}</span>`;
+  html += `<span class="status-badge status-${status}">${statusLabel(status)}</span>`;
+  html += `<div class="experiment-id">${escHtml(exp.id)}</div>`;
+  if (exp.notes) {
+    html += `<div class="experiment-notes">${escHtml(exp.notes)}</div>`;
+  }
+  if (exp.review_notes) {
+    html += `<div class="experiment-notes" style="color:#fa8;margin-top:4px;">Review: ${escHtml(exp.review_notes)}</div>`;
+  }
+  html += `</div>`;
+
+  // Background toggle
+  html += `<div class="bg-toggle">Background:`;
+  html += ` <button data-bg="#111"${currentBg === '#111' ? ' class="active"' : ''}>Dark</button>`;
+  html += ` <button data-bg="#888"${currentBg === '#888' ? ' class="active"' : ''}>Gray</button>`;
+  html += ` <button data-bg="#eee"${currentBg === '#eee' ? ' class="active"' : ''}>Light</button>`;
+  html += ` <button data-bg="checker"${currentBg === 'checker' ? ' class="active"' : ''}>Checker</button>`;
+  html += `</div>`;
+
+  if (exp.type === 'static') {
+    html += renderStaticPreview(exp);
+  } else if (exp.type === 'directional') {
+    html += renderDirectionalPreview(exp);
+  } else if (exp.type === 'animation') {
+    html += renderAnimationPreview(exp);
+  } else {
+    html += `<div class="placeholder">Unknown type: ${escHtml(exp.type)}</div>`;
+  }
+
+  html += `</div>`;
+  app.innerHTML = html;
+
+  // Wire back button
+  document.querySelector('.detail-back').addEventListener('click', () => {
+    // Stop any running timers
+    Object.keys(cycleTimers).forEach(stopCycle);
+    Object.keys(animTimers).forEach(stopAnim);
+    currentView = 'index';
+    renderCurrentView();
+  });
+
+  // Wire background toggle
+  document.querySelectorAll('.bg-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.bg-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentBg = btn.dataset.bg;
+      applyAllBgs();
+    });
+  });
+
+  // Post-render image sizing (same logic as before, scoped to the single detail experiment)
+
+  // Static zoom images
+  document.querySelectorAll('.zoom-img').forEach(img => {
+    const item = img.closest('.zoom-item');
+    if (!item) return;
+    function setSize() {
+      if (img.naturalWidth && img.naturalHeight) {
+        const z = parseInt(item.querySelector('.zoom-label').textContent);
+        img.style.width = (img.naturalWidth * z) + 'px';
+        img.style.height = (img.naturalHeight * z) + 'px';
+      }
+    }
+    if (img.complete) setSize();
+    else img.addEventListener('load', setSize);
+  });
+
+  // Compass images
   document.querySelectorAll('.compass-container').forEach(container => {
     const imgs = container.querySelectorAll('.compass-img');
     if (imgs.length === 0) return;
@@ -577,7 +820,7 @@ function renderPage(manifest) {
     else first.addEventListener('load', setCompassSizes);
   });
 
-  // Wire up cycle buttons
+  // Wire cycle buttons
   document.querySelectorAll('.cycle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const expId = btn.dataset.expId;
@@ -593,29 +836,25 @@ function renderPage(manifest) {
     });
   });
 
-  // Animation: measure first frame and scale main + filmstrip images
+  // Animation sizing
   document.querySelectorAll('.anim-container').forEach(container => {
-    const expId = container.dataset.animId;
     const mainImg = container.querySelector('.anim-main-img');
     const filmImgs = container.querySelectorAll('.filmstrip-img');
-
     function setAnimSizes() {
       if (mainImg.naturalWidth && mainImg.naturalHeight) {
-        const mainZoom = 4;
-        mainImg.style.width = (mainImg.naturalWidth * mainZoom) + 'px';
-        mainImg.style.height = (mainImg.naturalHeight * mainZoom) + 'px';
-        const thumbZoom = 2;
+        mainImg.style.width = (mainImg.naturalWidth * 4) + 'px';
+        mainImg.style.height = (mainImg.naturalHeight * 4) + 'px';
         filmImgs.forEach(img => {
-          img.style.width = (mainImg.naturalWidth * thumbZoom) + 'px';
-          img.style.height = (mainImg.naturalHeight * thumbZoom) + 'px';
+          img.style.width = (mainImg.naturalWidth * 2) + 'px';
+          img.style.height = (mainImg.naturalHeight * 2) + 'px';
         });
       }
     }
-    if (mainImg.complete) setAnimSizes();
-    else mainImg.addEventListener('load', setAnimSizes);
+    if (mainImg && mainImg.complete) setAnimSizes();
+    else if (mainImg) mainImg.addEventListener('load', setAnimSizes);
   });
 
-  // Wire up animation play/pause buttons
+  // Wire animation controls
   document.querySelectorAll('.anim-play-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const expId = btn.dataset.animId;
@@ -633,7 +872,6 @@ function renderPage(manifest) {
     });
   });
 
-  // Wire up animation speed sliders
   document.querySelectorAll('.anim-speed-slider').forEach(slider => {
     slider.addEventListener('input', () => {
       const expId = slider.dataset.animId;
@@ -646,33 +884,38 @@ function renderPage(manifest) {
     });
   });
 
-  // Wire up filmstrip frame clicks
   document.querySelectorAll('.filmstrip-frame').forEach(frame => {
     frame.addEventListener('click', () => {
-      const expId = frame.dataset.animId;
-      const frameIdx = parseInt(frame.dataset.frameIdx);
-      setAnimFrame(expId, frameIdx);
+      setAnimFrame(frame.dataset.animId, parseInt(frame.dataset.frameIdx));
     });
   });
 
-  // Wire up background toggle
-  document.querySelectorAll('.bg-toggle button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.bg-toggle button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentBg = btn.dataset.bg;
-      applyAllBgs();
-    });
-  });
-
-  // Apply initial background to all preview containers (compass cells don't have inline styles)
   applyAllBgs();
+}
+
+function renderCurrentView() {
+  if (!manifestData) return;
+  // Clean up timers when switching views
+  Object.keys(cycleTimers).forEach(stopCycle);
+  Object.keys(animTimers).forEach(stopAnim);
+
+  if (currentView === 'detail' && currentExpId) {
+    renderDetailPage(manifestData);
+  } else {
+    renderIndexPage(manifestData);
+  }
 }
 
 (async () => {
   const manifest = await loadManifest();
   if (!manifest) return;
-  renderPage(manifest);
+
+  // Set default filter based on unreviewed count
+  const counts = getStatusCounts(manifest.experiments);
+  currentFilter = counts.unreviewed > 0 ? 'unreviewed' : 'all';
+
+  manifestData = manifest;
+  renderCurrentView();
 })();
 </script>
 </body>
