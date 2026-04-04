@@ -438,6 +438,9 @@ function renderPage(manifest) {
       applyAllBgs();
     });
   });
+
+  // Apply initial background to all preview containers (compass cells don't have inline styles)
+  applyAllBgs();
 }
 
 (async () => {
