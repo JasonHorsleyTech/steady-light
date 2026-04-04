@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+  Lightbox — Asset Review Tool
+  Serve: npx serve workshop        (then open http://localhost:3000/lightbox/)
+  Or:    python3 -m http.server -d workshop
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -321,8 +326,11 @@ async function loadManifest() {
     return await res.json();
   } catch (e) {
     app.innerHTML = `<div class="empty">
-      <p>No manifest.json found.</p>
-      <p style="margin-top:8px">Run: <code>npx tsx workshop/pixellab/build-manifest.ts</code></p>
+      <p>No manifest.json found at <code>../pixellab/manifest.json</code></p>
+      <p style="margin-top:12px"><strong>To serve Lightbox:</strong></p>
+      <p style="margin-top:4px"><code>npx serve workshop</code> → open <code>/lightbox/</code></p>
+      <p style="margin-top:12px"><strong>To build manifest:</strong></p>
+      <p style="margin-top:4px"><code>npx tsx workshop/pixellab/build-manifest.ts</code></p>
     </div>`;
     return null;
   }
