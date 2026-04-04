@@ -1,0 +1,53 @@
+{
+  "generated": "2026-04-04T02:10:00.534Z",
+  "experiments": [
+    {
+      "id": "001-slime-humanoid-character",
+      "name": "Slime Humanoid Character",
+      "frames": [
+        "rotations/east.png",
+        "rotations/north.png",
+        "rotations/south.png",
+        "rotations/west.png"
+      ],
+      "notes": "❌ Slime *man*, not a slime blob. Humanoid skeleton forced it into a bipedal shape. Looks like a green alien. The tool doesn't have a \"blob\" body type — only humanoid and quadruped.",
+      "type": "directional",
+      "status": "unreviewed",
+      "review_notes": null,
+      "direction_map": {
+        "east": "rotations/east.png",
+        "north": "rotations/north.png",
+        "south": "rotations/south.png",
+        "west": "rotations/west.png"
+      }
+    },
+    {
+      "id": "002-slime-map-object",
+      "name": "Slime Map Object",
+      "frames": [
+        "slime.png"
+      ],
+      "notes": "✅ Actually looks like a slime blob! Amorphous ghost/blob shape, green, no limbs. Much better than the character tool for non-humanoid creatures. Single image though — no directional views.",
+      "type": "static",
+      "status": "unreviewed",
+      "review_notes": null
+    },
+    {
+      "id": "003-slime-idle-tiles",
+      "name": "Slime Idle Tiles",
+      "frames": [
+        "frame_0.png",
+        "frame_1.png",
+        "frame_2.png",
+        "frame_3.png",
+        "frame_4.png",
+        "frame_5.png"
+      ],
+      "notes": null,
+      "type": "animation",
+      "status": "unreviewed",
+      "review_notes": null,
+      "frame_rate": 200
+    }
+  ]
+}

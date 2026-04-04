@@ -111,6 +111,8 @@ old-docs/            — Previous iteration documents (GPT sessions, earlier GDD
 | **Workshop** | The `workshop/` directory. Tools agents use to build the game — audio generators, format converters, scaffolders. Not the game itself; the production line's toolbox. |
 | **Friction Log** | `FRICTION.md` at project root. Agents log unexpected problems here so the next agent doesn't waste focus re-solving them. |
 | **Shakedown** | Hands-on discovery process for a new external creative tool (Pixel Labs, ElevenLabs, Suno, etc.). Jason + Claude figure out the real pipeline — API quirks, quality tricks, normalization needs — then encode findings into workshop tools and skills so agents can use it autonomously. Labeled S1, S2, etc. in PLAN.md. |
+| **Internal Tool** | A human-facing tool for reviewing and directing agent output. Unlike workshop tools (which agents run to create content) and bridges (which agents use to verify content), internal tools are for Jason to inspect what agents built and feed decisions back into the next session. Live in `workshop/` alongside workshop tools. See "Internal Tools" section below. |
+| **Lightbox** | The first internal tool. Browser-based asset review page for previewing PixelLab-generated sprites (static, directional, animated) and recording approve/reject/needs-changes decisions. Spec: `workshop/lightbox/SPEC.md`. |
 
 ## Development Philosophy: Islands & Bridges
 
@@ -165,6 +167,19 @@ docs/
       milestones/    — Low-level: individual stepping stones for overnight runs
 old-docs/            — Previous iteration documents (GPT sessions, earlier GDDs)
 ```
+
+## Internal Tools
+
+Internal tools are human-facing utilities for reviewing and directing agent output. They close the feedback loop between overnight agent sessions and morning reviews.
+
+The pattern: agents generate content overnight → Jason opens an internal tool in the browser → reviews the output visually → speaks to Claude about what's good/bad/needs-changes → Claude updates a status file → next agent session reads that file and knows what to redo.
+
+Internal tools live in `workshop/` and follow the same convention (TypeScript, single-purpose, spec doc in the folder). The difference from workshop tools is the audience: workshop tools are for agents, internal tools are for Jason.
+
+**Current internal tools:**
+- **Lightbox** (`workshop/lightbox/`) — Asset review for PixelLab-generated sprites. See `workshop/lightbox/SPEC.md`.
+
+When building a new internal tool, write a `SPEC.md` first describing the goal, the review workflow, and the output contract (what file agents read to get feedback).
 
 ## The Workshop
 
