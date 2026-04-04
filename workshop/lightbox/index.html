@@ -270,12 +270,38 @@
   }
 
   /* Detail view */
-  .detail-back {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 13px; color: #6faaff; cursor: pointer; margin-bottom: 16px;
-    background: none; border: none; font-family: inherit; padding: 0;
+  .breadcrumb {
+    display: flex; align-items: center; gap: 0; font-size: 14px; margin-bottom: 20px;
+    color: #666;
   }
-  .detail-back:hover { text-decoration: underline; }
+  .breadcrumb-link {
+    color: #6faaff; cursor: pointer; background: none; border: none;
+    font-family: inherit; font-size: 14px; padding: 0;
+  }
+  .breadcrumb-link:hover { text-decoration: underline; }
+  .breadcrumb-sep { margin: 0 8px; color: #555; }
+  .breadcrumb-current { color: #ccc; }
+
+  .detail-header {
+    margin-bottom: 20px; border-bottom: 1px solid #2a2a4e; padding-bottom: 16px;
+  }
+  .detail-name {
+    font-size: 26px; color: #eee; font-weight: bold; margin-bottom: 4px;
+  }
+  .detail-id {
+    font-size: 16px; color: #6faaff; margin-bottom: 8px;
+  }
+  .detail-badges {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 10px;
+  }
+  .detail-notes {
+    font-size: 13px; color: #aaa; line-height: 1.5; margin-top: 8px;
+  }
+  .detail-review-notes {
+    font-size: 13px; color: #fa8; line-height: 1.5; margin-top: 6px;
+    padding: 8px 12px; background: rgba(250, 168, 0, 0.08); border-radius: 4px;
+    border-left: 3px solid #fa8;
+  }
 </style>
 </head>
 <body>
@@ -730,18 +756,28 @@ function renderDetailPage(manifest) {
 
   const status = exp.status || 'unreviewed';
 
-  let html = `<button class="detail-back">&larr; Back to index</button>`;
+  // Breadcrumb navigation
+  let html = `<nav class="breadcrumb">`;
+  html += `<button class="breadcrumb-link breadcrumb-back">Lightbox</button>`;
+  html += `<span class="breadcrumb-sep">/</span>`;
+  html += `<span class="breadcrumb-current">${escHtml(exp.name)}</span>`;
+  html += `</nav>`;
+
   html += `<div class="experiment">`;
-  html += `<div class="experiment-header">`;
-  html += `<span class="experiment-name">${escHtml(exp.name)}</span>`;
+
+  // Prominent header with name, ID, badges
+  html += `<div class="detail-header">`;
+  html += `<div class="detail-name">${escHtml(exp.name)}</div>`;
+  html += `<div class="detail-id">${escHtml(exp.id)}</div>`;
+  html += `<div class="detail-badges">`;
   html += `<span class="experiment-type type-${exp.type}">${exp.type}</span>`;
   html += `<span class="status-badge status-${status}">${statusLabel(status)}</span>`;
-  html += `<div class="experiment-id">${escHtml(exp.id)}</div>`;
+  html += `</div>`;
   if (exp.notes) {
-    html += `<div class="experiment-notes">${escHtml(exp.notes)}</div>`;
+    html += `<div class="detail-notes">${escHtml(exp.notes)}</div>`;
   }
   if (exp.review_notes) {
-    html += `<div class="experiment-notes" style="color:#fa8;margin-top:4px;">Review: ${escHtml(exp.review_notes)}</div>`;
+    html += `<div class="detail-review-notes">Review: ${escHtml(exp.review_notes)}</div>`;
   }
   html += `</div>`;
 
@@ -766,8 +802,8 @@ function renderDetailPage(manifest) {
   html += `</div>`;
   app.innerHTML = html;
 
-  // Wire back button
-  document.querySelector('.detail-back').addEventListener('click', () => {
+  // Wire breadcrumb back navigation
+  document.querySelector('.breadcrumb-back').addEventListener('click', () => {
     // Stop any running timers
     Object.keys(cycleTimers).forEach(stopCycle);
     Object.keys(animTimers).forEach(stopAnim);
