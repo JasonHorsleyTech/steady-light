@@ -126,14 +126,80 @@
   }
   .compass-controls button.active { background: #6faaff; color: #111; border-color: #6faaff; }
 
-  /* Placeholder for non-implemented types */
+  /* Placeholder for unknown types */
   .placeholder {
     background: #16213e; border: 1px solid #333; border-radius: 8px;
     padding: 24px; color: #666; font-size: 13px;
   }
-  .placeholder .thumbs { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
-  .placeholder .thumbs img {
-    width: 48px; height: 48px; image-rendering: pixelated; background: #111; border-radius: 3px;
+
+  /* Animation player */
+  .anim-container {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .anim-main {
+    display: flex; align-items: center; gap: 16px;
+  }
+  .anim-main .preview-bg {
+    line-height: 0;
+  }
+  .anim-main-img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+  }
+  .anim-controls {
+    display: flex; gap: 12px; align-items: center; font-size: 13px; color: #888;
+  }
+  .anim-controls button {
+    background: #333; border: 1px solid #555; color: #ccc; padding: 4px 14px;
+    border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px;
+    min-width: 60px;
+  }
+  .anim-controls button.active { background: #6faaff; color: #111; border-color: #6faaff; }
+  .anim-frame-num {
+    font-size: 13px; color: #ccc; min-width: 70px;
+  }
+  .anim-speed-group {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .anim-speed-group input[type="range"] {
+    width: 120px; accent-color: #6faaff;
+  }
+  .anim-speed-label {
+    font-size: 11px; color: #888; min-width: 55px;
+  }
+
+  /* Filmstrip */
+  .filmstrip {
+    display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .filmstrip-frame {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    padding: 2px;
+    transition: border-color 0.15s;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .filmstrip-frame:hover {
+    border-color: #555;
+  }
+  .filmstrip-frame.active {
+    border-color: #6faaff;
+  }
+  .filmstrip-frame .preview-bg {
+    line-height: 0;
+  }
+  .filmstrip-img {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+  }
+  .filmstrip-label {
+    font-size: 10px; color: #666; margin-top: 2px;
+  }
+  .filmstrip-frame.active .filmstrip-label {
+    color: #6faaff;
   }
 
   .empty { text-align: center; padding: 60px; color: #666; }
@@ -199,14 +265,110 @@ function renderStaticPreview(exp) {
   return html;
 }
 
-function renderPlaceholder(exp) {
-  const label = 'Animation preview';
-  const thumbs = exp.frames.slice(0, 8).map(f =>
-    `<img src="../pixellab/${exp.id}/${f}" alt="${escHtml(f)}" loading="lazy">`
-  ).join('');
-  return `<div class="placeholder">${label} coming soon
-    <div class="thumbs">${thumbs}</div>
-  </div>`;
+// Animation state: keyed by exp.id
+const animTimers = {};
+const animStates = {};
+
+function renderAnimationPreview(exp) {
+  const expId = escHtml(exp.id);
+  const frameRate = exp.frame_rate || 200;
+  const frames = exp.frames.map(f => `../pixellab/${exp.id}/${f}`);
+  if (frames.length === 0) {
+    return `<div class="placeholder">No frames found</div>`;
+  }
+
+  // Store initial state
+  animStates[exp.id] = { frame: 0, speed: frameRate, playing: false, frames };
+
+  let html = `<div class="anim-container" data-anim-id="${expId}">`;
+
+  // Main preview image
+  html += `<div class="anim-main">`;
+  html += `<div class="preview-bg">`;
+  html += `<img class="anim-main-img" src="${frames[0]}" data-anim-id="${expId}">`;
+  html += `</div>`;
+  html += `</div>`;
+
+  // Controls row
+  html += `<div class="anim-controls">`;
+  html += `<button class="anim-play-btn" data-anim-id="${expId}">Play</button>`;
+  html += `<span class="anim-frame-num" data-anim-id="${expId}">Frame 1 / ${frames.length}</span>`;
+  html += `<div class="anim-speed-group">`;
+  html += `<span>Speed:</span>`;
+  html += `<input type="range" class="anim-speed-slider" data-anim-id="${expId}" min="50" max="800" step="10" value="${frameRate}">`;
+  html += `<span class="anim-speed-label" data-anim-id="${expId}">${frameRate}ms</span>`;
+  html += `</div>`;
+  html += `</div>`;
+
+  // Filmstrip
+  html += `<div class="filmstrip" data-anim-id="${expId}">`;
+  for (let i = 0; i < frames.length; i++) {
+    html += `<div class="filmstrip-frame${i === 0 ? ' active' : ''}" data-anim-id="${expId}" data-frame-idx="${i}">`;
+    html += `<div class="preview-bg">`;
+    html += `<img class="filmstrip-img" src="${frames[i]}" loading="lazy">`;
+    html += `</div>`;
+    html += `<span class="filmstrip-label">${i + 1}</span>`;
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  html += `</div>`;
+  return html;
+}
+
+function setAnimFrame(expId, frameIdx) {
+  const state = animStates[expId];
+  if (!state) return;
+  state.frame = frameIdx;
+
+  // Update main image
+  const mainImg = document.querySelector(`.anim-main-img[data-anim-id="${expId}"]`);
+  if (mainImg) mainImg.src = state.frames[frameIdx];
+
+  // Update frame number
+  const frameNum = document.querySelector(`.anim-frame-num[data-anim-id="${expId}"]`);
+  if (frameNum) frameNum.textContent = `Frame ${frameIdx + 1} / ${state.frames.length}`;
+
+  // Update filmstrip active state
+  const filmstrip = document.querySelector(`.filmstrip[data-anim-id="${expId}"]`);
+  if (filmstrip) {
+    filmstrip.querySelectorAll('.filmstrip-frame').forEach(f => f.classList.remove('active'));
+    const target = filmstrip.querySelector(`.filmstrip-frame[data-frame-idx="${frameIdx}"]`);
+    if (target) target.classList.add('active');
+  }
+}
+
+function startAnim(expId) {
+  const state = animStates[expId];
+  if (!state) return;
+  state.playing = true;
+
+  function tick() {
+    state.frame = (state.frame + 1) % state.frames.length;
+    setAnimFrame(expId, state.frame);
+  }
+
+  animTimers[expId] = setInterval(tick, state.speed);
+}
+
+function stopAnim(expId) {
+  if (animTimers[expId]) {
+    clearInterval(animTimers[expId]);
+    delete animTimers[expId];
+  }
+  const state = animStates[expId];
+  if (state) state.playing = false;
+}
+
+function restartAnimTimer(expId) {
+  const state = animStates[expId];
+  if (!state || !state.playing) return;
+  stopAnim(expId);
+  state.playing = true;
+  animTimers[expId] = setInterval(() => {
+    state.frame = (state.frame + 1) % state.frames.length;
+    setAnimFrame(expId, state.frame);
+  }, state.speed);
 }
 
 // Compass layout positions: maps direction names to grid cell indices (0-8 in a 3x3 grid)
@@ -363,8 +525,10 @@ function renderPage(manifest) {
       html += renderStaticPreview(exp);
     } else if (exp.type === 'directional') {
       html += renderDirectionalPreview(exp);
+    } else if (exp.type === 'animation') {
+      html += renderAnimationPreview(exp);
     } else {
-      html += renderPlaceholder(exp);
+      html += `<div class="placeholder">Unknown type: ${escHtml(exp.type)}</div>`;
     }
 
     html += `</div>`;
@@ -426,6 +590,68 @@ function renderPage(manifest) {
         btn.textContent = 'Stop';
         startCycle(expId);
       }
+    });
+  });
+
+  // Animation: measure first frame and scale main + filmstrip images
+  document.querySelectorAll('.anim-container').forEach(container => {
+    const expId = container.dataset.animId;
+    const mainImg = container.querySelector('.anim-main-img');
+    const filmImgs = container.querySelectorAll('.filmstrip-img');
+
+    function setAnimSizes() {
+      if (mainImg.naturalWidth && mainImg.naturalHeight) {
+        const mainZoom = 4;
+        mainImg.style.width = (mainImg.naturalWidth * mainZoom) + 'px';
+        mainImg.style.height = (mainImg.naturalHeight * mainZoom) + 'px';
+        const thumbZoom = 2;
+        filmImgs.forEach(img => {
+          img.style.width = (mainImg.naturalWidth * thumbZoom) + 'px';
+          img.style.height = (mainImg.naturalHeight * thumbZoom) + 'px';
+        });
+      }
+    }
+    if (mainImg.complete) setAnimSizes();
+    else mainImg.addEventListener('load', setAnimSizes);
+  });
+
+  // Wire up animation play/pause buttons
+  document.querySelectorAll('.anim-play-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const expId = btn.dataset.animId;
+      const state = animStates[expId];
+      if (!state) return;
+      if (state.playing) {
+        stopAnim(expId);
+        btn.classList.remove('active');
+        btn.textContent = 'Play';
+      } else {
+        startAnim(expId);
+        btn.classList.add('active');
+        btn.textContent = 'Pause';
+      }
+    });
+  });
+
+  // Wire up animation speed sliders
+  document.querySelectorAll('.anim-speed-slider').forEach(slider => {
+    slider.addEventListener('input', () => {
+      const expId = slider.dataset.animId;
+      const state = animStates[expId];
+      if (!state) return;
+      state.speed = parseInt(slider.value);
+      const label = document.querySelector(`.anim-speed-label[data-anim-id="${expId}"]`);
+      if (label) label.textContent = state.speed + 'ms';
+      if (state.playing) restartAnimTimer(expId);
+    });
+  });
+
+  // Wire up filmstrip frame clicks
+  document.querySelectorAll('.filmstrip-frame').forEach(frame => {
+    frame.addEventListener('click', () => {
+      const expId = frame.dataset.animId;
+      const frameIdx = parseInt(frame.dataset.frameIdx);
+      setAnimFrame(expId, frameIdx);
     });
   });
 
