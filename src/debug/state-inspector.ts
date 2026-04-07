@@ -5,6 +5,7 @@ import { logger } from '../core/logger';
 import type { LogCategory } from '../core/logger';
 import { bridgeManager } from '../bridges/bridge-manager';
 import type { BridgeName } from '../bridges/bridge-manager';
+import type { GridControls } from './grid-inspector';
 
 export interface BridgeControls {
   enable: (name: BridgeName | 'all') => void;
@@ -27,6 +28,7 @@ export interface SteadyLightDebug {
   eventBus: typeof eventBus;
   logger: LoggerControls;
   bridges: BridgeControls;
+  grid?: GridControls;
 }
 
 declare global {

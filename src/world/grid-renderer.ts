@@ -7,14 +7,17 @@
 import { Application, Graphics } from 'pixi.js';
 import { logger } from '../core/logger';
 import { type GridConfig, getGridPixelSize } from './grid-config';
+import type { GridEntity } from './entity';
 
 const BACKGROUND_COLOR = 0x1a1a2e;
 const BORDER_COLOR = 0x444466;
 const BORDER_ALPHA = 0.8;
+const ENTITY_PADDING = 4;
 
 export class GridRenderer {
   readonly app: Application;
   private gridGraphics: Graphics | null = null;
+  private entityGraphics: Graphics | null = null;
   private config: GridConfig;
   private initialized = false;
 
@@ -88,6 +91,30 @@ export class GridRenderer {
 
     this.app.stage.addChild(g);
     this.gridGraphics = g;
+  }
+
+  /** Render all entities as colored squares at their grid positions. */
+  renderEntities(entities: GridEntity[]): void {
+    if (!this.initialized) return;
+
+    if (this.entityGraphics) {
+      this.app.stage.removeChild(this.entityGraphics);
+      this.entityGraphics.destroy();
+    }
+
+    const g = new Graphics();
+    const { cellSize } = this.config;
+
+    for (const entity of entities) {
+      const px = entity.position.x * cellSize + ENTITY_PADDING;
+      const py = entity.position.y * cellSize + ENTITY_PADDING;
+      const size = cellSize - ENTITY_PADDING * 2;
+      g.rect(px, py, size, size);
+      g.fill({ color: entity.render.color });
+    }
+
+    this.app.stage.addChild(g);
+    this.entityGraphics = g;
   }
 
   /** Clean up PixiJS resources. */
