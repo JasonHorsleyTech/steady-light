@@ -41,6 +41,7 @@ export class GridBridge implements Bridge {
   private config: GridConfig;
   private renderer: GridRenderer;
   private unsubMove: (() => void) | null = null;
+  private unsubAttack: (() => void) | null = null;
 
   constructor(deps: GridBridgeDeps) {
     this.entityManager = deps.entityManager;
@@ -49,7 +50,15 @@ export class GridBridge implements Bridge {
   }
 
   init(): void {
+    // Clean up any existing subscriptions first (idempotent — prevents listener leaks)
+    this.unsubMove?.();
+    this.unsubAttack?.();
+
     this.unsubMove = eventBus.on('combat:entity-moved', () => {
+      this.render();
+    });
+
+    this.unsubAttack = eventBus.on('combat:attack-landed', () => {
       this.render();
     });
 
@@ -65,6 +74,8 @@ export class GridBridge implements Bridge {
   dispose(): void {
     this.unsubMove?.();
     this.unsubMove = null;
+    this.unsubAttack?.();
+    this.unsubAttack = null;
 
     this.renderer.hideCoordinateLabels();
 

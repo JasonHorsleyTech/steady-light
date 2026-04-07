@@ -22,6 +22,7 @@ export class GridRenderer {
   private labelContainer: Container | null = null;
   private config: GridConfig;
   private initialized = false;
+  private disposed = false;
 
   constructor(config: GridConfig) {
     this.config = config;
@@ -39,6 +40,12 @@ export class GridRenderer {
       antialias: false,
       resolution: 1,
     });
+
+    // Abort if destroyed while waiting for async init (React StrictMode double-mount)
+    if (this.disposed) {
+      this.app.destroy(true, { children: true });
+      return;
+    }
 
     container.appendChild(this.app.canvas);
     this.drawGrid();
@@ -158,6 +165,7 @@ export class GridRenderer {
 
   /** Clean up PixiJS resources. */
   destroy(): void {
+    this.disposed = true;
     if (this.initialized) {
       this.app.destroy(true, { children: true });
       this.initialized = false;

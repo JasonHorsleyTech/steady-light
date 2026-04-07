@@ -6,6 +6,7 @@ import type { LogCategory } from '../core/logger';
 import { bridgeManager } from '../bridges/bridge-manager';
 import type { BridgeName } from '../bridges/bridge-manager';
 import type { GridControls } from './grid-inspector';
+import type { GridState } from '../world/entity';
 
 export interface BridgeControls {
   enable: (name: BridgeName | 'all') => void;
@@ -22,7 +23,7 @@ export interface LoggerControls {
 }
 
 export interface SteadyLightDebug {
-  getState: () => GameState;
+  getState: () => GameState & { grid?: GridState };
   setState: (partial: Partial<GameState>) => void;
   toggleDebug: () => void;
   eventBus: typeof eventBus;
@@ -47,7 +48,11 @@ export function initStateInspector(): void {
   if (import.meta.env.PROD) return;
 
   window.STEADY_LIGHT = {
-    getState: () => gameStore.getState(),
+    getState: () => {
+      const state = gameStore.getState();
+      const grid = window.STEADY_LIGHT?.grid?.getState();
+      return grid ? { ...state, grid } : state;
+    },
     setState: (partial) => gameStore.setState(partial),
     toggleDebug: () => {
       debugEnabled = !debugEnabled;

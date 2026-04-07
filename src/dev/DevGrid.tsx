@@ -31,11 +31,15 @@ export function DevGrid() {
     });
     let cleanupKeyboard: (() => void) | null = null;
     let cleanupAttack: (() => void) | null = null;
+    let aborted = false;
 
     // Register bridge — DevLayout's enableAll() will call init()
     bridgeManager.register(gridBridge);
 
     renderer.init(container).then(() => {
+      // Guard against StrictMode double-mount — don't set up if already cleaned up
+      if (aborted) return;
+
       // Player at D4
       entityManager.add({
         id: 'player',
@@ -85,6 +89,7 @@ export function DevGrid() {
     initGridInspector({ getState, entityManager, renderer });
 
     return () => {
+      aborted = true;
       // Dispose bridge before destroying renderer (bridge needs renderer for label cleanup)
       bridgeManager.disable('grid');
       slimeBehavior.dispose();
