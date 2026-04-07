@@ -27,7 +27,7 @@ class Logger {
    */
   log(category: LogCategory, payload: Record<string, unknown>): void {
     if (!this.toggles[category]) return;
-    console.log(`[STEADY-LIGHT:${category}]`, payload);
+    console.log(`[STEADY-LIGHT:${category}] ${JSON.stringify(payload)}`);
   }
 
   /** Enable a single log category. */
