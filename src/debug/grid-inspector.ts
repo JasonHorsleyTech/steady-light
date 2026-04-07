@@ -5,6 +5,8 @@
 
 import type { GridState, GridEntity, EntityManager } from '../world/entity';
 import type { GridRenderer } from '../world/grid-renderer';
+import { bridgeManager } from '../bridges/bridge-manager';
+import type { GridBridge } from '../bridges/grid-bridge';
 
 export interface GridControls {
   getState: () => GridState;
@@ -18,6 +20,13 @@ interface GridInspectorDeps {
   renderer: GridRenderer;
 }
 
+/** Trigger ASCII bridge render if the grid bridge is active. */
+function notifyBridge(): void {
+  if (!bridgeManager.isEnabled('grid')) return;
+  const bridge = bridgeManager.get('grid') as GridBridge | undefined;
+  bridge?.render();
+}
+
 export function initGridInspector({ getState, entityManager, renderer }: GridInspectorDeps): void {
   if (import.meta.env.PROD) return;
   if (!window.STEADY_LIGHT) return;
@@ -27,10 +36,12 @@ export function initGridInspector({ getState, entityManager, renderer }: GridIns
     addEntity: (entity: GridEntity) => {
       entityManager.add(entity);
       renderer.renderEntities(entityManager.getAll());
+      notifyBridge();
     },
     removeEntity: (id: string) => {
       const removed = entityManager.remove(id);
       renderer.renderEntities(entityManager.getAll());
+      notifyBridge();
       return removed;
     },
   };

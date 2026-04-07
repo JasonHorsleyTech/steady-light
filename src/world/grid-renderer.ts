@@ -4,7 +4,7 @@
  * Reads dimensions from GridConfig — does not hardcode sizes.
  */
 
-import { Application, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, Text } from 'pixi.js';
 import { logger } from '../core/logger';
 import { type GridConfig, getGridPixelSize } from './grid-config';
 import type { GridEntity } from './entity';
@@ -13,11 +13,13 @@ const BACKGROUND_COLOR = 0x1a1a2e;
 const BORDER_COLOR = 0x444466;
 const BORDER_ALPHA = 0.8;
 const ENTITY_PADDING = 4;
+const LABEL_STYLE = { fontSize: 10, fill: 0x888899, fontFamily: 'monospace' };
 
 export class GridRenderer {
   readonly app: Application;
   private gridGraphics: Graphics | null = null;
   private entityGraphics: Graphics | null = null;
+  private labelContainer: Container | null = null;
   private config: GridConfig;
   private initialized = false;
 
@@ -115,6 +117,43 @@ export class GridRenderer {
 
     this.app.stage.addChild(g);
     this.entityGraphics = g;
+  }
+
+  /** Show A-H column and 1-8 row labels as a debug overlay. */
+  showCoordinateLabels(): void {
+    if (!this.initialized || this.labelContainer) return;
+
+    const container = new Container();
+    const { width, height, cellSize } = this.config;
+
+    // Column labels (A-H) centered at top of each column
+    for (let col = 0; col < width; col++) {
+      const label = new Text({ text: String.fromCharCode(65 + col), style: LABEL_STYLE });
+      label.x = col * cellSize + (cellSize - label.width) / 2;
+      label.y = 2;
+      container.addChild(label);
+    }
+
+    // Row labels (1-8) at left of each row
+    for (let row = 0; row < height; row++) {
+      const label = new Text({ text: String(row + 1), style: LABEL_STYLE });
+      label.x = 3;
+      label.y = row * cellSize + (cellSize - label.height) / 2;
+      container.addChild(label);
+    }
+
+    this.app.stage.addChild(container);
+    this.labelContainer = container;
+  }
+
+  /** Hide coordinate labels overlay. */
+  hideCoordinateLabels(): void {
+    if (!this.labelContainer) return;
+    if (this.initialized) {
+      this.app.stage.removeChild(this.labelContainer);
+      this.labelContainer.destroy({ children: true });
+    }
+    this.labelContainer = null;
   }
 
   /** Clean up PixiJS resources. */

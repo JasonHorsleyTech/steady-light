@@ -6,6 +6,8 @@ import type { GridState } from '../world/entity';
 import { initGridInspector, clearGridInspector } from '../debug/grid-inspector';
 import { listenKeyboard } from '../input/keyboard';
 import { movePlayer } from '../world/movement';
+import { GridBridge } from '../bridges/grid-bridge';
+import { bridgeManager } from '../bridges/bridge-manager';
 
 const PLAYER_COLOR = 0x4fc3f7;
 
@@ -18,7 +20,11 @@ export function DevGrid() {
 
     const renderer = new GridRenderer(DEFAULT_GRID_CONFIG);
     const entityManager = new EntityManager();
+    const gridBridge = new GridBridge({ entityManager, config: DEFAULT_GRID_CONFIG, renderer });
     let cleanupKeyboard: (() => void) | null = null;
+
+    // Register bridge — DevLayout's enableAll() will call init()
+    bridgeManager.register(gridBridge);
 
     renderer.init(container).then(() => {
       entityManager.add({
@@ -29,6 +35,12 @@ export function DevGrid() {
       });
 
       renderer.renderEntities(entityManager.getAll());
+
+      // Renderer is now ready — show labels and output initial ASCII if bridge is active
+      if (bridgeManager.isEnabled('grid')) {
+        renderer.showCoordinateLabels();
+        gridBridge.render();
+      }
 
       // Wire up keyboard → movement → re-render
       cleanupKeyboard = listenKeyboard((dir) => {
@@ -49,6 +61,8 @@ export function DevGrid() {
     initGridInspector({ getState, entityManager, renderer });
 
     return () => {
+      // Dispose bridge before destroying renderer (bridge needs renderer for label cleanup)
+      bridgeManager.disable('grid');
       cleanupKeyboard?.();
       clearGridInspector();
       entityManager.clear();
