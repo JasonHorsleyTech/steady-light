@@ -18,6 +18,10 @@ const DevTest = import.meta.env.DEV
   ? lazy(() => import('./dev/DevTest').then((m) => ({ default: m.DevTest })))
   : null;
 
+const DevGrid = import.meta.env.DEV
+  ? lazy(() => import('./dev/DevGrid').then((m) => ({ default: m.DevGrid })))
+  : null;
+
 function Home() {
   return (
     <div style={{ fontFamily: 'monospace', padding: '2rem', color: '#e0e0e0', background: '#1a1a2e', minHeight: '100vh' }}>
@@ -34,10 +38,11 @@ export function App() {
       <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<Home />} />
-          {DevLayout && DevIndex && DevTest && (
+          {DevLayout && DevIndex && DevTest && DevGrid && (
             <Route path="/dev" element={<DevLayout />}>
               <Route index element={<DevIndex />} />
               <Route path="test" element={<DevTest />} />
+              <Route path="grid" element={<DevGrid />} />
             </Route>
           )}
         </Routes>

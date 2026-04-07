@@ -9,6 +9,7 @@ interface DevRouteEntry {
 
 const devRoutes: DevRouteEntry[] = [
   { path: '/dev/test', label: 'Test', description: 'Verify dev route system is working', ready: true },
+  { path: '/dev/grid', label: 'Grid', description: 'PixiJS 8×8 grid renderer', ready: true },
   { path: '/dev/combat', label: 'Combat', description: 'Stage 0 combat prototype', ready: false },
   { path: '/dev/dialogue', label: 'Dialogue', description: 'Dialogue system test', ready: false },
   { path: '/dev/economy', label: 'Economy', description: 'Economy and shop systems', ready: false },
