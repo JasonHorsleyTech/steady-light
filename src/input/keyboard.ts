@@ -39,3 +39,21 @@ export function listenKeyboard(onDirection: (dir: Direction) => void): () => voi
   window.addEventListener('keydown', handler);
   return () => window.removeEventListener('keydown', handler);
 }
+
+/**
+ * Listen for attack key input (spacebar or enter).
+ * Calls `onAttack` once per keypress (ignores key repeat).
+ * Returns a cleanup function to remove the listener.
+ */
+export function listenAttack(onAttack: () => void): () => void {
+  const handler = (e: KeyboardEvent) => {
+    if (e.repeat) return;
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      onAttack();
+    }
+  };
+
+  window.addEventListener('keydown', handler);
+  return () => window.removeEventListener('keydown', handler);
+}
