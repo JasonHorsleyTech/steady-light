@@ -4,6 +4,8 @@ import { GridRenderer } from '../world/grid-renderer';
 import { EntityManager } from '../world/entity';
 import type { GridState } from '../world/entity';
 import { initGridInspector, clearGridInspector } from '../debug/grid-inspector';
+import { listenKeyboard } from '../input/keyboard';
+import { movePlayer } from '../world/movement';
 
 const PLAYER_COLOR = 0x4fc3f7;
 
@@ -16,6 +18,7 @@ export function DevGrid() {
 
     const renderer = new GridRenderer(DEFAULT_GRID_CONFIG);
     const entityManager = new EntityManager();
+    let cleanupKeyboard: (() => void) | null = null;
 
     renderer.init(container).then(() => {
       entityManager.add({
@@ -26,6 +29,15 @@ export function DevGrid() {
       });
 
       renderer.renderEntities(entityManager.getAll());
+
+      // Wire up keyboard → movement → re-render
+      cleanupKeyboard = listenKeyboard((dir) => {
+        movePlayer(dir, {
+          entityManager,
+          config: DEFAULT_GRID_CONFIG,
+          onMoved: () => renderer.renderEntities(entityManager.getAll()),
+        });
+      });
     });
 
     const getState = (): GridState => ({
@@ -37,6 +49,7 @@ export function DevGrid() {
     initGridInspector({ getState, entityManager, renderer });
 
     return () => {
+      cleanupKeyboard?.();
       clearGridInspector();
       entityManager.clear();
       renderer.destroy();
@@ -47,7 +60,7 @@ export function DevGrid() {
     <div>
       <h2>Grid</h2>
       <p style={{ color: '#aaa', marginBottom: '1rem' }}>
-        8×8 grid — {DEFAULT_GRID_CONFIG.cellSize}px cells — Player at D4
+        8×8 grid — {DEFAULT_GRID_CONFIG.cellSize}px cells — Arrow keys or WASD to move
       </p>
       <div ref={containerRef} />
     </div>
