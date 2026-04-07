@@ -12,6 +12,7 @@ import type { GridConfig } from '../world/grid-config';
 import type { GridRenderer } from '../world/grid-renderer';
 import { eventBus } from '../core/event-bus';
 import { logger } from '../core/logger';
+import { toCoord } from '../world/grid-utils';
 
 /** Map entity types to single-character symbols for ASCII output */
 const ENTITY_SYMBOLS: Record<string, string> = {
@@ -21,11 +22,6 @@ const ENTITY_SYMBOLS: Record<string, string> = {
 
 function getSymbol(entity: GridEntity): string {
   return ENTITY_SYMBOLS[entity.type] ?? entity.type[0].toUpperCase();
-}
-
-/** Convert grid position to human-readable coordinate (e.g. "D4") */
-function toCoord(x: number, y: number): string {
-  return `${String.fromCharCode(65 + x)}${y + 1}`;
 }
 
 export interface GridBridgeDeps {
@@ -119,7 +115,7 @@ export class GridBridge implements Bridge {
       lines.push('Legend:');
       for (const entity of entities) {
         const sym = getSymbol(entity);
-        const coord = toCoord(entity.position.x, entity.position.y);
+        const coord = toCoord(entity.position);
         lines.push(`  ${sym} = ${entity.type} @ ${coord}`);
       }
     }

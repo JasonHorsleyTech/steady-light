@@ -6,43 +6,21 @@
 
 import type { GridPosition } from '../core/types';
 import type { StatChange } from '../core/types/combat';
-import { EnemyBehavior, Direction } from '../core/types/enums';
+import { EnemyBehavior } from '../core/types/enums';
 import type { EntityManager, GridEntity } from '../world/entity';
 import type { GridConfig } from '../world/grid-config';
 import { eventBus } from '../core/event-bus';
 import { logger } from '../core/logger';
+import {
+  DIRECTION_DELTA,
+  toCoord,
+  isAdjacent,
+  directionToward,
+  isInBounds,
+  isOccupied,
+} from '../world/grid-utils';
 
 type SlimeState = 'idle' | 'retaliating';
-
-/** Convert grid position to human-readable coordinate (e.g. "D4") */
-function toCoord(pos: GridPosition): string {
-  return `${String.fromCharCode(65 + pos.x)}${pos.y + 1}`;
-}
-
-/** Check if two positions are cardinally adjacent (not diagonal) */
-function isAdjacent(a: GridPosition, b: GridPosition): boolean {
-  const dx = Math.abs(a.x - b.x);
-  const dy = Math.abs(a.y - b.y);
-  return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
-}
-
-/** Get direction from `from` toward `to` that reduces distance most */
-function directionToward(from: GridPosition, to: GridPosition): Direction | null {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  if (dx === 0 && dy === 0) return null;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return dx > 0 ? Direction.Right : Direction.Left;
-  }
-  return dy > 0 ? Direction.Down : Direction.Up;
-}
-
-const DIRECTION_DELTA: Record<Direction, { dx: number; dy: number }> = {
-  [Direction.Up]: { dx: 0, dy: -1 },
-  [Direction.Down]: { dx: 0, dy: 1 },
-  [Direction.Left]: { dx: -1, dy: 0 },
-  [Direction.Right]: { dx: 1, dy: 0 },
-};
 
 export interface SlimeBehaviorDeps {
   entityManager: EntityManager;
@@ -210,16 +188,8 @@ export class SlimeBehavior {
       y: entity.position.y + delta.dy,
     };
 
-    // Boundary check
-    if (to.x < 0 || to.x >= this.config.width || to.y < 0 || to.y >= this.config.height) {
-      return;
-    }
-
-    // Collision check — can't move into occupied cell
-    const occupied = this.entityManager.getAll().some(
-      (e) => e.id !== entity.id && e.position.x === to.x && e.position.y === to.y,
-    );
-    if (occupied) return;
+    if (!isInBounds(to, this.config)) return;
+    if (isOccupied(to, this.entityManager.getAll(), entity.id)) return;
 
     const from = { ...entity.position };
     entity.position = to;

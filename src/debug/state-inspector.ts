@@ -38,14 +38,14 @@ declare global {
   }
 }
 
-let debugEnabled = false;
-
 /**
  * Expose the state inspector on `window.STEADY_LIGHT` in development builds.
  * Call once at app startup.
  */
 export function initStateInspector(): void {
   if (import.meta.env.PROD) return;
+
+  let debugEnabled = false;
 
   window.STEADY_LIGHT = {
     getState: () => {
